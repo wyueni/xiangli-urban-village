@@ -175,7 +175,9 @@ noteTarget='building-'+id;$('selection-note').value=game.state.notes[noteTarget]
  $('export').hidden=!api.activeBuilding(id);$('renovate').disabled=paid||!!game.state.buildingWorks[id];$('move-stall').hidden=true;$('remove-original').hidden=true;$('object-policy').hidden=true;}
 function inspectNode(id){
  for (const buttonId of ['panel-clear-building','panel-rebuild-building']) { if ($(buttonId)) $(buttonId).hidden = true; }
-noteTarget='node-'+id;$('selection-note').value=game.state.notes[noteTarget]||'';knowledge?.inline('node-theory',['drain','pit'].includes(id)?'water':id==='bikes'?'hazard':id==='craft-home'?'economy':['hall','story-corner'].includes(id)?'culture':'human');const note=sceneNodes.get(id);if(note?.storyEn)$('node-detail').innerHTML='<b>'+esc(note.kind)+'</b>'+esc(note.lesson)+'<div class="culture-translation"><small>SHARE THE EVERYDAY</small><p>'+esc(note.storyEn)+'</p></div>';$('building-capacity').hidden=true;$('move-building').hidden=true;$('relocate-building').hidden=true;const n=sceneNodes.get(id),spec=objectSpec(id),removed=!n.root.visible;
+noteTarget='node-'+id;$('selection-note').value=game.state.notes[noteTarget]||'';knowledge?.inline('node-theory',['drain','pit'].includes(id)?'water':id==='bikes'?'hazard':id==='craft-home'?'economy':['hall','story-corner'].includes(id)?'culture':'human');const note=sceneNodes.get(id);
+ $('node-detail').classList.toggle('local-culture', Boolean(note?.storyEn));
+ if(note?.storyEn)$('node-detail').innerHTML='<b>'+esc(note.kind)+'</b>'+esc(note.lesson)+'<div class="culture-translation"><small>SHARE THE EVERYDAY</small><p>'+esc(note.storyEn)+'</p></div>';$('building-capacity').hidden=true;$('move-building').hidden=true;$('relocate-building').hidden=true;const n=sceneNodes.get(id),spec=objectSpec(id),removed=!n.root.visible;
 
  if ($('place-record-label')) $('place-record-label').textContent='地点档案';
  if ($('place-facts')) {
