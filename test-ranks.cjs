@@ -1,0 +1,18 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const ranks = vm.runInNewContext(fs.readFileSync('dist/ranks.js', 'utf8') + ';VillageRanks;');
+const cases = [[0,'接了个烫手村'],[29.99,'接了个烫手村'],[30,'巷口实习村长'],[44.99,'巷口实习村长'],[45,'街坊办事人'],[59.99,'街坊办事人'],[60,'旧巷改造能手'],[74.99,'旧巷改造能手'],[75,'街坊主心骨'],[89.99,'街坊主心骨'],[90,'城中村之王'],[100,'城中村之王']];
+for (const [score,name] of cases) assert.equal(ranks.tier(score).name,name);
+const score = total => ({total,parts:[{name:'公共服务',value:5,max:15},{name:'住房保障',value:20,max:20}]});
+let r=ranks.result(score(75),60,60);
+assert.equal(r.unlocked,true);assert.equal(r.change,15);assert.equal(r.gap,15);assert.equal(r.weakest.name,'公共服务');
+r=ranks.result(score(40),75,90);
+assert.equal(r.unlocked,false);assert.equal(r.change,-35);assert.equal(r.best.name,'城中村之王');assert.equal(r.current.name,'巷口实习村长');
+r=ranks.result(score(74.99),null,null);
+assert.equal(r.change,null);assert.equal(r.unlocked,true);assert.equal(r.gap,.01);
+r=ranks.result(score(90),89,95);
+assert.equal(r.unlocked,false);assert.equal(r.next,undefined);
+assert.ok(ranks.render(score(60),null,80).includes('首次记录'));
+assert.ok(!/undefined|NaN/.test(ranks.render(score(100),90,90)));
+console.log('Rank tests passed: thresholds, first record, upgrades, declines, retained best, next tier and scoring advice.');

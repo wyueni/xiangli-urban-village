@@ -1,7 +1,7 @@
 // CPU verification only: real Three.js geometry, mocked renderer and canvas.
 // Does not verify GPU appearance, screenshots or frame rate.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const html=fs.readFileSync('dist/index.html','utf8'),ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'Duplicate DOM IDs');for(const m of fs.readFileSync('dist/scene.js','utf8').matchAll(/\$\('([^']+)'\)/g))assert.ok(ids.includes(m[1]),'Missing DOM ID '+m[1]);
+const html=fs.readFileSync('dist/management.html','utf8'),ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'Duplicate DOM IDs');for(const m of fs.readFileSync('dist/scene.js','utf8').matchAll(/\$\('([^']+)'\)/g))assert.ok(ids.includes(m[1]),'Missing DOM ID '+m[1]);
 const storage=new Map();const listeners=new Map(),elements=new Map();
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==','base64');
 function element(id=''){if(elements.has(id))return elements.get(id);const e={id,children:[],style:{},dataset:{},firstChild:{textContent:''},classList:{add(){},remove(){},toggle(){}},addEventListener(type,cb){listeners.set(id+':'+type,cb);},getContext(){return new Proxy({createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},{get:(t,k)=>k in t?t[k]:()=>{}});},toBlob(cb){cb(new Blob([png],{type:'image/png'}));},remove(){},focus(){},close(){},showModal(){},setAttribute(){},setPointerCapture(){},getBoundingClientRect:()=>({left:0,top:0,width:1440,height:900}),get children(){return [];}};elements.set(id,e);return e;}
@@ -29,13 +29,13 @@ for(const mode of ['risk','light','green','life'])api.setObservation(mode);
 assert.equal(api.lightProfiles.length,20);assert.ok(api.lightProfiles.every(p=>p.rows.every(m=>m>=0&&m<=720)));assert.ok(api.lightProfiles.some(p=>p.rows[0]<p.rows.at(-1)));
 const beforeGreen=api.greenCoverage();api.toggleGreening();const afterGreen=api.greenCoverage();assert.ok(afterGreen>beforeGreen);api.planning.undo();assert.equal(api.greenCoverage(),beforeGreen);
 const game=api.planning.game;
-assert.equal(game.state.balance,45000);
+assert.equal(game.state.balance,15000);
 assert.ok(api.planning.validate('bench',0,10));assert.ok(api.planning.validate('bench',0,-28));assert.ok(api.planning.validate('bench',47,20));
 assert.equal(api.planning.validate('bench',37,25),null);
 let validSites=0;for(let x=-49;x<53;x+=3)for(let z=-57;z<61;z+=3)if(!api.planning.validate('bench',x,z))validSites++;assert.ok(validSites>60);
-api.planning.start('new','bench');assert.equal(api.planning.place(37,25),true);assert.equal(game.state.balance,44980);assert.equal(game.state.items.length,1);assert.ok(api.planning.validate('bench',37,25));assert.ok(api.planning.roots.size===1);api.planning.undo();assert.equal(game.state.balance,45000);assert.equal(api.planning.roots.size,0);
-for(const c of sandbox.window.VillageBudget.CATALOG){api.planning.start('new',c.id);assert.equal(api.planning.place(37,25),true,'Could not place '+c.id);const metrics=api.planning.metrics();assert.ok(Number.isFinite(metrics.reduced));assert.ok(api.planning.roots.size===1);api.planning.undo();assert.equal(game.state.balance,45000);}
-assert.equal(game.setNote('plan','保留早餐档和街坊茶桌').ok,true);api.planning.renderControls();assert.equal(game.state.balance,45000);assert.equal(game.state.notes.plan,'保留早餐档和街坊茶桌');api.planning.undo();assert.equal(game.state.notes.plan,undefined);
+api.planning.start('new','bench');assert.equal(api.planning.place(37,25),true);assert.equal(game.state.balance,14980);assert.equal(game.state.items.length,1);assert.ok(api.planning.validate('bench',37,25));assert.ok(api.planning.roots.size===1);api.planning.undo();assert.equal(game.state.balance,15000);assert.equal(api.planning.roots.size,0);
+for(const c of sandbox.window.VillageBudget.CATALOG){api.planning.start('new',c.id);assert.equal(api.planning.place(37,25),true,'Could not place '+c.id);const metrics=api.planning.metrics();assert.ok(Number.isFinite(metrics.reduced));assert.ok(api.planning.roots.size===1);api.planning.undo();assert.equal(game.state.balance,15000);}
+assert.equal(game.setNote('plan','保留早餐档和街坊茶桌').ok,true);api.planning.renderControls();assert.equal(game.state.balance,15000);assert.equal(game.state.notes.plan,'保留早餐档和街坊茶桌');api.planning.undo();assert.equal(game.state.notes.plan,undefined);
 const knowledge=sandbox.window.VillageKnowledge;
 assert.equal(knowledge.terms.length,26);
 for(const term of knowledge.terms){
@@ -51,15 +51,15 @@ const prop=api.sceneNodes.get('prop-0'),original={x:prop.x,z:prop.z};
 api.inspectNode(prop.id);element('move-stall').onclick();
 assert.equal(api.planning.chooseSite(37,25),true);
 element('site-prediction').value='change';element('site-confirm').onclick();
-assert.equal(prop.x,37);assert.equal(game.state.balance,45000);
+assert.equal(prop.x,37);assert.equal(game.state.balance,15000);
 assert.ok(element('field-result').textContent.includes('搬迁'));
 element('field-retry').onclick();assert.equal(prop.x,original.x);assert.equal(prop.z,original.z);api.planning.cancel();
-api.inspectNode(prop.id);element('remove-original').onclick();assert.equal(prop.root.visible,false);assert.equal(game.state.balance,45000);
+api.inspectNode(prop.id);element('remove-original').onclick();assert.equal(prop.root.visible,false);assert.equal(game.state.balance,15000);
 api.planning.undo();assert.equal(prop.root.visible,true);
 api.planning.start('new','service');assert.equal(api.planning.chooseSite(37,25),true);
 element('site-prediction').value='change';element('site-confirm').onclick();
 assert.ok(element('field-result').textContent.includes('80 米步行覆盖'));
-element('field-retry').onclick();api.planning.cancel();assert.equal(game.state.balance,45000);
+element('field-retry').onclick();api.planning.cancel();assert.equal(game.state.balance,15000);
 api.select(0);element('relocate-building').onclick();
 let movedBuilding=false;
 for(let x=-46;x<=49&&!movedBuilding;x+=2)for(let z=-54;z<=57&&!movedBuilding;z+=2){
@@ -67,7 +67,7 @@ for(let x=-46;x<=49&&!movedBuilding;x+=2)for(let z=-54;z<=57&&!movedBuilding;z+=
 }
 assert.ok(movedBuilding,'At least one fitting relocation site must exist');
 assert.notEqual(api.activeBuilding(0).config.z,api.baseBuildings[0].config.z);
-api.planning.undo();assert.equal(api.activeBuilding(0),api.baseBuildings[0]);assert.equal(game.state.balance,45000);
+api.planning.undo();assert.equal(api.activeBuilding(0),api.baseBuildings[0]);assert.equal(game.state.balance,15000);
 for(const [mode,word] of [['water','下垫面'],['light','60 分钟'],['green','地面种植率']]){
  api.setObservation(mode);assert.equal(element('study-diagnosis').hidden,false);
  element('study-diagnosis').onclick();assert.ok(element('diagnosis-content').innerHTML.includes(word));
@@ -79,7 +79,7 @@ const doubleOccupancy=api.planning.metrics().housing;
 assert.equal(doubleOccupancy.before,2*doubleOccupancy.roomsBefore);
 element('occupancy-scenario').onchange({target:{value:'1'}});
 assert.equal(api.planning.metrics().housing.before,doubleOccupancy.roomsBefore);
-assert.equal(game.state.balance,45000);api.planning.undo();
+assert.equal(game.state.balance,15000);api.planning.undo();
 assert.equal(api.planning.metrics().housing.before,doubleOccupancy.before);
 const beforePlan=api.planning.metrics();
 const previousSun=api.lightProfiles.map(p=>p.rows.slice());
@@ -95,7 +95,7 @@ assert.ok(api.activeBuilding(9).config.floors<api.baseBuildings[9].config.floors
 assert.ok(api.planning.metrics().housing.gap>0);
 api.planning.undo();assert.deepEqual(api.lightProfiles.map(p=>p.rows),previousSun);
 assert.ok(element('culture-route').innerHTML.includes('Ancestral hall'));
-assert.equal(game.changeBuilding(-1,"clear",100).ok,false);assert.equal(game.state.balance,45000);
+assert.equal(game.changeBuilding(-1,"clear",100).ok,false);assert.equal(game.state.balance,15000);
 for(const value of ['water','human','gis'])api.setObservation(value);
 assert.ok(api.planning.metrics().coverage>=0&&api.planning.metrics().coverage<=100);
 api.setCompare(true);const renders=api.renderer.renders;sandbox.lastFrame(performance.now()+30);assert.equal(api.renderer.renders,renders+2);api.setCompare(false);
