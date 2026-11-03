@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');const {create,valid,CATALOG}=require('./dist/budget.js');
+const g=create();assert.equal(g.state.balance,45000);
+assert.equal(g.transact('非法负数',-1,()=>{}).ok,false);assert.equal(g.transact('超支',45001,()=>{}).ok,false);assert.equal(g.state.balance,45000);
+assert.equal(g.renovate(0).ok,true);assert.equal(g.state.balance,44820);assert.equal(g.renovate(0).ok,false);assert.equal(g.state.balance,44820);g.undo();assert.equal(g.state.balance,45000);
+for(const c of CATALOG){assert.equal(g.buy(c.id,36,25).ok,true);assert.equal(g.state.balance,45000-c.price);assert.ok(valid(g.state));g.undo();}
+assert.equal(g.buy('bench',NaN,4).ok,false);g.buy('bench',36,25);const id=g.state.items[0].id;g.moveItem(id,37,25);assert.equal(g.state.balance,44970);assert.equal(g.state.items[0].x,37);g.removeItem(id);assert.equal(g.state.balance,44960);assert.equal(g.state.items.length,0);g.undo();assert.equal(g.state.items.length,1);g.undo();assert.equal(g.state.items[0].x,36);g.undo();assert.equal(g.state.balance,45000);
+for(const id of ['waste','bikes','pit','drain'])assert.equal(g.resolve(id).ok,true);assert.equal(g.state.balance,44730);assert.equal(g.resolve('waste').ok,false);assert.equal(g.state.balance,44730);
+const saved=g.state,loaded=create(JSON.parse(JSON.stringify(saved)));assert.deepEqual(loaded.state,saved);assert.equal(loaded.canUndo,false);assert.equal(create({...saved,balance:0}).state.balance,45000);
+assert.equal(g.changeBuilding(-1,"clear",100).ok,false);g.reset();assert.equal(g.setNote('plan','这是一个自愿填写的方案说明').ok,true);assert.equal(g.state.balance,45000);assert.equal(g.addPin(10,20,'保留这棵树下的聊天空间').ok,true);assert.equal(g.state.pins.length,1);assert.equal(g.state.balance,45000);g.deletePin(g.state.pins[0].id);assert.equal(g.state.pins.length,0);g.undo();assert.equal(g.state.pins.length,1);assert.equal(create(g.state).state.notes.plan,'这是一个自愿填写的方案说明');g.reset();assert.equal(g.transact('花完预算',45000,()=>{}).ok,true);assert.equal(g.state.balance,0);assert.equal(g.buy('bench',0,0).ok,false);assert.ok(valid(g.state));console.log('Budget invariants passed: affordability, duplicate prevention, undo, save validation and zero balance.');
+
+const migrated=create({ ...create().state, version:4, initial:2000, balance:1980, ledger:[{label:'旧改造',cost:20}] });assert.equal(migrated.state.balance,44980);

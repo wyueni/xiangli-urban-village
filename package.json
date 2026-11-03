@@ -1,0 +1,1 @@
+{"name":"xiangli-village-model","version":"1.3.0","private":true,"scripts":{"check":"node --check dist/scene.js && node --check dist/export.js && node --check dist/budget.js && node --check dist/planning.js && node --check dist/knowledge.js","test":"node test-budget.cjs && node check-model.cjs","start":"node server.cjs"}}
