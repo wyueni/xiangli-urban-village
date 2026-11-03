@@ -54,7 +54,7 @@ V04新增的工坊、茶桌、讲古角、便民点均为虚构社区生活节�
 
 ## V05 资金量级、人口与日照
 
-- [花都田美村一期可研公示](https://www.huadu.gov.cn/zdlyxxgk/zdjsxm/content/mpost_10954144.html)列示总投资8505.26万元。[康鹭批复](https://www.haizhu.gov.cn/hzdt/hzyw/hzzc/content/post_10167549.html)列示复建安置资金243.54亿元，两者资金范围不同。游戏额度4500万元、每平方米0.65或1.35万元均为教学平衡参数。
+- [花都田美村一期可研公示](https://www.huadu.gov.cn/zdlyxxgk/zdjsxm/content/mpost_10954144.html)列示总投资8505.26万元。[康鹭批复](https://www.haizhu.gov.cn/hzdt/hzyw/hzzc/content/post_10167549.html)列示复建安置资金243.54亿元，两者资金范围不同。新局预算1500万元、每月政府拨款100万元、每平方米0.65或1.35万元均为教学平衡参数。
 - [广州市城中村改造条例](https://ghzyj.gz.gov.cn/zwgk/newzcfg/ywly/content/post_9972128.html)区分整治提升、拆整结合和拆除新建。
 - [康乐村服装生产企业空间集聚研究](https://www.dlyj.ac.cn/CN/10.11821/yj2012070012)与[园夏村公共空间微改造研究](https://html.rhhz.net/HNLGDXXBSKB/html/2024-3-136.htm)用于设计产业网络、社区交往与文化导览讨论。
 - 容量与绿化使用游戏几何和公开显示的教学假设。冬至采用太阳赤纬 −23.44°、广州纬度23.1°和15分钟中点采样，按临街立面三点平均计算直射时间。模型暂只计算周边民居遮挡。
