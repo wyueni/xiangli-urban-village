@@ -15,7 +15,7 @@
       });
       return;
     }
-    if (!visited && !localStorage.getItem('xiangli-prologue-v1')) {
+    if (location.protocol !== 'file:' && !visited && !localStorage.getItem('xiangli-prologue-v1')) {
       location.replace('./index.html');
       return;
     }

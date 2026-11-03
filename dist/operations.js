@@ -24,10 +24,16 @@ const VillageOps = (() => {
  const guides=[
   {title:'上任导览 · 先看看旧楼',story:'“老王，钱就这么多，你可得掂量着花。”芳姨把账本往你面前一放。你望向巷子里的旧楼：有的只需修整门面，有的需要腾出空间。这一世，每一笔钱，都要换来街坊生活里看得见的变化。',goal:'点击一栋民居，查看立面整修、拆除腾地、退界重建和原型迁建。先看预算与得分预览，再决定做不做。',action:'查看一栋民居'},
   {title:'上任导览 · 给巷子添点新东西',story:'“旧楼能修，空地方也别浪费。”芳姨给你指了指巷边。添一把长椅，还是建一处便民驿站？你翻开改造商店，把每样东西的价格和能带来的变化一一对照。',goal:'打开改造商店，查看商品关联指标；选好位置后比较得分预览。无需购买也可以继续导览。',action:'打开改造商店'},
-  {title:'自由经营 · 这本账，你来做主',story:'芳姨把钥匙留在桌上：“老王，这条巷子就交给你了。”你合上手里的清单。先修哪里、添什么、花多少钱，都由你决定。等准备妥当，再看看这个月究竟交出了怎样的成绩。',goal:'在剩余总预算内争取最高总分。随时查看指标、比较改造预览；准备好后点击“结算本月”。导览完成与否不影响结算。',action:'查看指标总览'}
+  {title:'自由经营 · 这本账，你来做主',story:'芳姨把钥匙留在桌上：“老王，这条巷子就交给你了。”你合上手里的清单。先修哪里、添什么、花多少钱，都由你决定。等准备妥当，再看看这个月究竟交出了怎样的成绩。',goal:'先摊开街区位置图，看看哪里有隐患、哪里的街坊走到驿站最远。选一处你想改善的地方，在预算内争取更高总分。',action:'打开街区位置图'}
  ];
  const $=id=>document.getElementById(id);
  function saveGuide(){try{localStorage.setItem('xiangli-guide-v2',String(guide));}catch{}}
+ function openGuideMap(){
+  const tip = $('map-guide-tip');
+  tip.hidden = false;
+  $('map-dialog').addEventListener('close', () => { tip.hidden = true; }, {once:true});
+  $('expand-map').click();
+ }
  function presentGuide(){
   if(presented===guide)return;
   presented=guide;
@@ -44,6 +50,7 @@ const VillageOps = (() => {
    const to=panel.getBoundingClientRect();
    if(panel.animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)panel.animate([{transform:`translate(${from.left-to.left}px, ${from.top-to.top}px) scale(${from.width/to.width})`,transformOrigin:'top left',opacity:.7},{transform:'none',opacity:1}],{duration:360,easing:'ease-out'});
    $('opsGo').focus();
+   if (guide === 2) openGuideMap();
   };
   start.focus();
  }
@@ -68,7 +75,7 @@ const VillageOps = (() => {
   $('opsGo').onclick=()=>{
    if(guide===0){expandTools(true);window.Xiangli.select(0);$('focus').click();}
    else if(guide===1)$('open-shop').click();
-   else if($('dashboard-toggle').getAttribute('aria-expanded')!=='true')$('dashboard-toggle').click();
+   else openGuideMap();
   };
   $('guideNext').hidden=guide===2;
   $('guideNext').textContent=guide===0?'了解了 · 看看改造商店 →':'了解了 · 开始自由经营 →';

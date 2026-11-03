@@ -45,7 +45,13 @@ body.mission-intro #opsStats,body.mission-intro #opsGo,body.mission-intro #ops d
 @media(max-width:600px){body.mission-intro #ops{padding:24px}body.mission-intro #ops h2{font-size:23px}}
 
 /* Shared information hierarchy for buildings and street facilities. */
-#panel #node-detail{display:none!important}
+#panel #node-detail:not(.local-culture), #panel #node-detail[hidden]{display:none!important}
+#panel:not(.compact-tools) #node-detail.local-culture:not([hidden]) ~ #node-theory{display:block!important}
+
+.bottom .settings label:has(select){display:inline-flex;align-items:center;gap:6px;padding:3px 5px 3px 10px;border:1px solid #405c48;border-radius:9px;background:#fffdf4;color:#34513d;box-shadow:0 2px 6px #162c2733;font-size:12px;font-weight:600;cursor:pointer}
+.bottom .settings select{min-height:32px;max-width:150px;padding:4px 6px;background:#315640;color:white;color-scheme:dark;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+.bottom .settings label:focus-within{outline:3px solid #d5a24c;outline-offset:2px}
+@media(max-width:760px){.bottom .settings label:has(select){gap:4px;padding:2px 3px 2px 6px;font-size:11px}.bottom .settings select{max-width:115px;font-size:12px}}
 #panel #place-facts[hidden]{display:none}
 #panel #place-facts{gap:18px 10px;margin-top:14px;padding:18px 0;border-top:1px solid #dfe3d6}
 #panel #place-facts b{font-size:13px;line-height:1.5}

@@ -6,7 +6,7 @@
 
 - **在线试玩** [巷里网页版](https://wyueni.github.io/xiangli-urban-village/)，启用 GitHub Pages 后可直接在浏览器中打开。
 - **离线试玩** 下载仓库 ZIP，解压后双击 `开始体验.html`，使用支持 WebGL 的浏览器。
-- **本地开发** 在仓库根目录运行 `node server.cjs`，再在本机浏览器打开 `http://127.0.0.1:4173/`。
+- **本地开发** 在仓库根目录运行 `node server.cjs`，再在本机浏览器打开 `http://127.0.0.1:4175/`。
 
 ## 这一版的变化
 
