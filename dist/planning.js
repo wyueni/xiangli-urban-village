@@ -5,7 +5,7 @@ const {buildingCost}=window.VillageBudget;
 const {api,THREE,Builder,M,mat,boxGeo,sphereGeo,scene,globals,buildings,sceneNodes,board,toast}=h,$=id=>document.getElementById(id),catalog=window.VillageBudget.CATALOG;
 const knowledge=window.VillageKnowledge;if(knowledge)knowledge.init();
 const money=v=>v===0?'0 元':(v/10).toFixed(1)+' 万',esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let stored=null;try{stored=JSON.parse(localStorage.getItem('xiangli-plan-v4'));}catch(_){}const game=window.VillageBudget.create(stored);
+let stored=null;try{stored=JSON.parse(localStorage.getItem('xiangli-plan-v4'));}catch(_){}let game=window.VillageBudget.create(stored);
 const roots=new Map(),originals=new Map([...sceneNodes].map(([id,n])=>[id,{x:n.x,z:n.z}])),baseGreens=h.greenSpaces.map(c=>({...c}));let tool=null,chosenItem=null,noteTarget='building-9',pinDraft=null,category='全部',search='',mapLayer='life',rainfall=60;let view={x:0,y:0,w:840,h:900};
 const civicPrices={breakfast:[80,45],waste:[110,65],bikes:[25,18],'tea-corner':[22,12],'craft-home':[135,80],'story-corner':[28,15],'service-home':[95,55]};
 const fixed={hall:'祠堂及前埕涉及文化保育和社区协商，本局保留原址。',creek:'河涌位置由水系决定，改造应从岸边空间入手。',pit:'检修坑接入地下设施，可改盖板。',drain:'雨水口接入地下管网，可清理杂物。'};
@@ -56,11 +56,33 @@ function createModel(item,previewOnly=false){const c=itemSpec(item.type),root=ne
  if(item.type==='craft'){for(let j=0;j<3;j++){b.cylinder(-.8+j*.75,1.42,.22,.28,.35,.28,mat(['#c3b398','#6f8b87','#b6a077'][j]));}b.box(0,1.7,-.25,1.1,.65,.035,mat('#ae8173'));}if(item.type==='tea'){for(let j=0;j<4;j++)b.cylinder(-.75+j*.45,1.35,.2,.16,.15,.16,mat('#cfc9ac'));}}
  b.finish();root.position.set(item.x,0,item.z);root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.userData.planItem=item.id;}});if(!previewOnly)globals.add(root);return root;
 }
-function apply(){const s=game.state;h.applyOriginalState(s);for(const [id,n] of sceneNodes){const at=originalLocation(id,s),fallback=originals.get(id);h.positionObject(n,(at||fallback).x,(at||fallback).z,!!at);}
- const ids=new Set(s.items.map(i=>i.id));for(const [id,r] of roots)if(!ids.has(id)){globals.remove(r);roots.delete(id);}for(const i of s.items){if(!roots.has(i.id))roots.set(i.id,createModel(i));roots.get(i.id).position.set(i.x,0,i.z);}
- h.greenSpaces.splice(0,h.greenSpaces.length,...baseGreens.flatMap(c=>{const at=c.id?originalLocation(c.id,s):c;return at?[{...c,...at}]:[];}));for(const i of s.items)if(['tree','planter','rain'].includes(i.type))h.greenSpaces.push({x:i.x,z:i.z,r:i.type==='tree'?1.55:i.type==='rain'?1.2:.5});h.refreshGreen();save();render();}
+function apply(quiet=false){const s=game.state;h.applyOriginalState(s,quiet);for(const [id,n] of sceneNodes){const at=originalLocation(id,s),fallback=originals.get(id);h.positionObject(n,(at||fallback).x,(at||fallback).z,!!at);}
+ if(!quiet){const ids=new Set(s.items.map(i=>i.id));for(const [id,r] of roots)if(!ids.has(id)){globals.remove(r);roots.delete(id);}for(const i of s.items){if(!roots.has(i.id))roots.set(i.id,createModel(i));roots.get(i.id).position.set(i.x,0,i.z);}}
+ h.greenSpaces.splice(0,h.greenSpaces.length,...baseGreens.flatMap(c=>{const at=c.id?originalLocation(c.id,s):c;return at?[{...c,...at}]:[];}));for(const i of s.items)if(['tree','planter','rain'].includes(i.type))h.greenSpaces.push({x:i.x,z:i.z,r:i.type==='tree'?1.55:i.type==='rain'?1.2:.5});if(!quiet){h.refreshGreen();save();render();}}
 function save(){try{localStorage.setItem('xiangli-plan-v4',JSON.stringify(game.state));}catch(_){} }
-function finish(result){if(!result.ok){toast(result.error);return false;}apply();toast('方案已更新。剩余预算 '+money(game.state.balance)+'。');return true;}
+function finish(result){
+ if(typeof result==='function') {
+  if(typeof VillageScore==='undefined') return finish(result());
+  const action=result, live=game;
+  const before={s:live.state,m:metrics()};
+  before.next=VillageOps.project(before.s,before.m);
+  let after, trial;
+  try {
+   game=window.VillageBudget.create(before.s);
+   trial=action();
+   if(trial.ok){apply(true);after={s:game.state,m:metrics()};after.next=VillageOps.project(after.s,after.m);}
+  } finally {game=live;apply(true);}
+  if(!trial.ok){toast(trial.error);return false;}
+  VillageScore.preview(before,after,()=>{
+   if(JSON.stringify(live.state)!==JSON.stringify(before.s)){toast('方案已变化，请重新预览。');return;}
+   if(finish(action())){
+    cancel();
+    for(const id of ['building-dialog','item-dialog','map-dialog']) if($(id).open) $(id).close();
+   }
+  });
+  return false;
+ }
+ if(!result.ok){toast(result.error);return false;}apply();toast('方案已更新。剩余预算 '+money(game.state.balance)+'。');return true;}
 let candidate=null,blockedLampSite=null,lampPreview=null;
 function start(type,id=null){
  if(type==='new'&&!itemSpec(id))return;
@@ -117,7 +139,7 @@ $('confirm-placement').onclick=()=>{if(candidate)place(candidate.x,candidate.z);
 $('placement-map').onclick=()=>{renderMap();$('map-dialog').showModal();};
 function specForTool(){return tool?.type==='new'?itemSpec(tool.id):tool?.type==='object'?objectSpec(tool.id):itemSpec(game.state.items.find(i=>i.id===tool?.id)?.type);}
 function place(x,z){if(!tool)return false;if(tool.type==='note'){if(x< -55||x>55||z< -65||z>65){toast('请在街区地图范围内添加便签');return false;}pinDraft={x:Math.round(x*2)/2,z:Math.round(z*2)/2};cancel();openPin();return true;}x=Math.round(x*2)/2;z=Math.round(z*2)/2;const spec=specForTool(),skip=tool.type==='object'||tool.type==='move'?tool.id:null;const error=validate(spec,x,z,skip);if(error){toast(error);$('map-explanation').textContent=error;return false;}
- const result=tool.type==='new'?game.buy(tool.id,x,z):tool.type==='object'?game.editObject(tool.id,spec.name,spec.price,{x,z}):game.moveItem(tool.id,x,z);if(finish(result)){cancel();renderMap();return true;}return false;}
+ const choice={...tool};const result=()=>choice.type==='new'?game.buy(choice.id,x,z):choice.type==='object'?game.editObject(choice.id,spec.name,spec.price,{x,z}):game.moveItem(choice.id,x,z);if(finish(result)){cancel();renderMap();return true;}return false;}
 function preview(point){
  if(!tool)return;
  const c=specForTool();if(!c)return;
@@ -130,16 +152,45 @@ function preview(point){
   lampPreview.position.set(x,0,z);lampPreview.visible=!error;
  }
 }
-function inspectBuilding(id){noteTarget='building-'+id;$('selection-note').value=game.state.notes[noteTarget]||'';knowledge?.inline('node-theory','light');const paid=game.state.renovated.includes(id);$('renovate').disabled=paid;$('renovate').textContent=paid?'已整修 · 可撤销上一步':'立面整修 · 18万';const original=api.livingCapacity(api.baseBuildings[id]), current=api.livingCapacity(api.activeBuilding(id));
+function inspectBuilding(id){
+ if ($('place-facts')) $('place-facts').hidden=true;
+ if ($('place-record-label')) $('place-record-label').textContent='建筑档案';
+noteTarget='building-'+id;$('selection-note').value=game.state.notes[noteTarget]||'';knowledge?.inline('node-theory','light');const paid=game.state.renovated.includes(id);$('renovate').disabled=paid;$('renovate').textContent=paid?'已整修 · 可撤销上一步':'立面整修 · 18万';const original=api.livingCapacity(api.baseBuildings[id]), current=api.livingCapacity(api.activeBuilding(id));
  $('building-capacity').hidden=false;$('building-capacity').textContent='估算出租房间 '+api.roomCount(api.baseBuildings[id])+' → '+api.roomCount(api.activeBuilding(id))+' 间；按 '+game.state.occupancy+' 人/间，容量 '+original+' → '+current+' 人。';
  $('move-building').hidden=false;$('move-building').disabled=!!game.state.buildingWorks[id]||!!game.state.objectEdits['building-'+id];$('relocate-building').hidden=!!game.state.buildingWorks[id];$('relocate-building').textContent='原型迁建 · '+money(objectSpec('building-'+id).price);
+
+ const config = api.baseBuildings[id].config;
+ const area = config.w * config.d * (config.floors + 1);
+ const unavailable = !!game.state.buildingWorks[id] || !!game.state.objectEdits['building-'+id];
+ for (const [buttonId, work, title] of [['panel-clear-building','clear','拆除腾地'], ['panel-rebuild-building','rebuild','退界重建']]) {
+  const button = $(buttonId);
+  if (!button) continue;
+  const cost = buildingCost(area, work);
+  button.hidden = false;
+  button.textContent = title + ' · ' + money(cost);
+  button.disabled = unavailable || cost > game.state.balance;
+  button.title = unavailable ? '已实施拆建或迁建，可撤销后重新选择' : cost > game.state.balance ? '预算不足' : '查看方案并确认施工';
+ }
+ $('relocate-building').disabled = unavailable || objectSpec('building-'+id).price > game.state.balance;
  $('export').hidden=!api.activeBuilding(id);$('renovate').disabled=paid||!!game.state.buildingWorks[id];$('move-stall').hidden=true;$('remove-original').hidden=true;$('object-policy').hidden=true;}
-function inspectNode(id){noteTarget='node-'+id;$('selection-note').value=game.state.notes[noteTarget]||'';knowledge?.inline('node-theory',['drain','pit'].includes(id)?'water':id==='bikes'?'hazard':id==='craft-home'?'economy':['hall','story-corner'].includes(id)?'culture':'human');const note=sceneNodes.get(id);if(note?.storyEn)$('node-detail').innerHTML='<b>'+esc(note.kind)+'</b>'+esc(note.lesson)+'<div class="culture-translation"><small>SHARE THE EVERYDAY</small><p>'+esc(note.storyEn)+'</p></div>';$('building-capacity').hidden=true;$('move-building').hidden=true;$('relocate-building').hidden=true;const n=sceneNodes.get(id),spec=objectSpec(id),removed=!n.root.visible;
+function inspectNode(id){
+ for (const buttonId of ['panel-clear-building','panel-rebuild-building']) { if ($(buttonId)) $(buttonId).hidden = true; }
+noteTarget='node-'+id;$('selection-note').value=game.state.notes[noteTarget]||'';knowledge?.inline('node-theory',['drain','pit'].includes(id)?'water':id==='bikes'?'hazard':id==='craft-home'?'economy':['hall','story-corner'].includes(id)?'culture':'human');const note=sceneNodes.get(id);if(note?.storyEn)$('node-detail').innerHTML='<b>'+esc(note.kind)+'</b>'+esc(note.lesson)+'<div class="culture-translation"><small>SHARE THE EVERYDAY</small><p>'+esc(note.storyEn)+'</p></div>';$('building-capacity').hidden=true;$('move-building').hidden=true;$('relocate-building').hidden=true;const n=sceneNodes.get(id),spec=objectSpec(id),removed=!n.root.visible;
+
+ if ($('place-record-label')) $('place-record-label').textContent='地点档案';
+ if ($('place-facts')) {
+  const state = removed ? '已撤除' : n.type === 'hazard' ? (game.state.resolved.includes(id) ? '已改善' : '待改善') : game.state.objectEdits[id] || game.state.moved[id] ? '已迁移' : '原有设施';
+  const facts = [['地点类型',n.kind], ['当前状态',state], ['占地尺寸',n.size[0].toFixed(1)+' × '+n.size[2].toFixed(1)+' m'], ['调整方式',spec ? '可搬迁、撤除' : n.type==='hazard' ? '原地改善' : '保留原址']];
+  $('place-facts').innerHTML=facts.map(([label,value])=>'<div><small>'+esc(label)+'</small><b>'+esc(value)+'</b></div>').join('');
+  $('place-facts').hidden=false;
+ }
+ $('move-stall').disabled=!!spec && spec.price>game.state.balance;
+ $('remove-original').disabled=!!spec && spec.remove>game.state.balance;
  $('move-stall').hidden=$('remove-original').hidden=!spec||removed;
  $('object-policy').hidden=!!spec&&!removed;$('object-policy').textContent=removed?'已撤除，可撤销后重新布置。':fixed[id]||'';
  if(spec){$('move-stall').textContent='搬迁 · '+money(spec.price);$('remove-original').textContent='撤除 · '+money(spec.remove);}
- if(removed)$('resolve').hidden=true;if(n?.type==='hazard'){$('resolve').disabled=game.state.resolved.includes(id);$('resolve').textContent=game.state.resolved.includes(id)?'已改善 · 可撤销上一步':n.action+' · '+money({waste:80,bikes:120,pit:40,drain:30}[id]);}}
-function buyRenovation(){const ok=finish(game.renovate(api.selected));if(ok)toast('已支出18万整修立面；楼高与楼间距不变，逐层直射日照不变。');return ok;}function buyHazard(){return finish(game.resolve(h.activeNode()));}function buyGreening(){return finish(game.green());}
+ if(removed)$('resolve').hidden=true;if(n?.type==='hazard'){$('resolve').disabled=game.state.resolved.includes(id)||{waste:80,bikes:120,pit:40,drain:30}[id]>game.state.balance;$('resolve').textContent=game.state.resolved.includes(id)?'已改善 · 可撤销上一步':n.action+' · '+money({waste:80,bikes:120,pit:40,drain:30}[id]);}}
+function buyRenovation(){const id=api.selected;const ok=finish(()=>game.renovate(id));if(ok)toast('已支出18万整修立面；楼高与楼间距不变，逐层直射日照不变。');return ok;}function buyHazard(){const id=h.activeNode();return finish(()=>game.resolve(id));}function buyGreening(){return finish(()=>game.green());}
 function selectItem(id){const i=game.state.items.find(i=>i.id===id);if(!i)return;chosenItem=id;$('item-note').value=game.state.notes['item-'+id]||'';const c=itemSpec(i.type);$('item-title').textContent=c.name;$('item-description').textContent=c.lesson+' 位置：('+i.x+', '+i.z+')，购置 '+money(c.price)+'。';knowledge?.inline('item-theory',['rain','paving'].includes(i.type)?'water':i.type==='service'?'gis':['craft','story'].includes(i.type)?'culture':i.type==='studio'?'economy':'planning');$('item-dialog').showModal();}
 // Weighted resident access to baseline and added community service, along a small road graph.
 const graphPoints=[[-42,10],[-17,10],[0,10],[18,10],[47,10],[0,-28],[0,63],[-42,-58],[-42,65],[-17,-44],[-17,59],[18,-44],[18,59]],edges=[[0,1],[1,2],[2,3],[3,4],[2,5],[2,6],[0,7],[0,8],[1,9],[1,10],[3,11],[3,12]];
@@ -250,35 +301,80 @@ $('diagnosis-content').onclick=e=>{
 };
 $('map-diagnosis').onclick=()=>openDiagnosis(mapLayer);
 $('study-diagnosis').onclick=()=>openDiagnosis(h.observation());
+// Compare the same original households in both scenarios, using each doorway's route.
+const doorway = c => ({x:c.x+Math.sin(c.rotation)*c.d/2,z:c.z+Math.cos(c.rotation)*c.d/2});
+const originalDoors = api.baseBuildings.map(b=>doorway(b.config));
+function accessChange(services){
+ const gained=[],lost=[],outside=[];
+ let newlyServed=0,noLongerServed=0;
+ api.baseBuildings.forEach((base,i)=>{
+  const current=buildings[i],was=walkDistance(originalDoors[i],originals.get('service-home'))<=80;
+  const active=current.root.visible,covered=active&&services.some(p=>walkDistance(doorway(current.config),p)<=80);
+  const oldCapacity=api.livingCapacity(base),kept=active?Math.min(oldCapacity,api.livingCapacity(current)):0;
+  if(!was&&covered&&kept){gained.push(i);newlyServed+=kept}
+  if(was){const loss=oldCapacity-(covered?kept:0);if(loss){lost.push(i);noLongerServed+=loss}}
+  if(active&&!covered)outside.push(i);
+ });
+ return {gained,lost,outside,newlyServed,noLongerServed};
+}
 function metrics(){const s=game.state,services=serviceLocations(s);let served=0,total=0;for(const b of buildings){if(!b.root.visible)continue;const c=b.config,n=api.livingCapacity(b),totalDistance=Math.min(...services.map(v=>walkDistance({x:c.x+Math.sin(c.rotation)*c.d/2,z:c.z+Math.cos(c.rotation)*c.d/2},v)));total+=n;if(totalDistance<=80)served+=n;}
  const reduced=s.items.reduce((sum,i)=>{const c=itemSpec(i.type);return sum+(i.type==='rain'?c.w*c.d*.65:i.type==='paving'?c.w*c.d*.4:0);},0)*rainfall/1000;
  const before=api.baseBuildings.reduce((sum,b)=>sum+api.livingCapacity(b),0);
  const affected=api.baseBuildings.reduce((sum,b)=>sum+(s.buildingWorks[b.config.id]||s.objectEdits['building-'+b.config.id]?api.livingCapacity(b):0),0);
  let gain=0,loss=0;
  for(const p of api.lightProfiles)if(!s.buildingWorks[p.id])p.rows.forEach((v,i)=>{if(v>api.baselineSun[p.id][i])gain++;if(v<api.baselineSun[p.id][i])loss++;});
- return {housing:{peoplePerRoom:s.occupancy,roomsBefore:api.baseBuildings.reduce((sum,b)=>sum+api.roomCount(b),0),roomsAfter:buildings.reduce((sum,b)=>sum+api.roomCount(b.root.visible?b:null),0),before,after:total,affected,gap:Math.max(0,before-total)},sun:{gain,loss,before:sunCoverage(api.baselineSun),after:sunCoverage(api.lightProfiles.map(p=>p.rows))},ground:{before:baselineGround,after:greenGround(s)},canopyBefore:originalCanopy,green:api.greenCoverage(),coverage:total?Math.round(served/total*100):0,reduced:+reduced.toFixed(2),culture:s.items.filter(i=>['craft','story','studio','tea'].includes(i.type)).length,solved:s.resolved.length,retained:buildings.length-Object.keys(s.buildingWorks).length};}
-function render(){const s=game.state;$('study-diagnosis').hidden=!diagnosis[h.observation()];$('budget-left').textContent=money(s.balance);$('budget-spent').textContent='已用 '+money(s.initial-s.balance)+' / 总额'+money(s.initial);$('undo-plan').disabled=!game.canUndo;inspectBuilding(api.selected);if(h.activeNode())inspectNode(h.activeNode());$('greening').disabled=s.greening;$('greening').textContent=s.greening?'已补绿 · 12万已计入':'三处补绿 · 12万';renderShop();renderMap();renderReport();knowledge?.inline('theory-context',h.observation());if(['water','human','gis'].includes(h.observation()))showStudy(h.observation());}
-function renderShop(){const categories=['全部','自然与生态','街坊生活','广府与湾区'];$('shop-categories').innerHTML=categories.map(v=>'<button class="'+(v===category?'active':'')+'" data-category="'+v+'">'+v+'</button>').join('');$('shop-items').innerHTML=catalog.filter(c=>category==='全部'||c.category===category).map(c=>'<article><small>'+c.category+'</small><h3>'+c.name+'</h3><p>'+c.description+'</p><div><b>'+money(c.price)+'</b><span>'+c.w+'×'+c.d+'m</span></div><button data-buy="'+c.id+'" '+(game.state.balance<c.price?'disabled':'')+'>'+(game.state.balance<c.price?'预算不足':'选择并选址 →')+'</button></article>').join('');}
+ return {served,access:accessChange(services),housing:{peoplePerRoom:s.occupancy,roomsBefore:api.baseBuildings.reduce((sum,b)=>sum+api.roomCount(b),0),roomsAfter:buildings.reduce((sum,b)=>sum+api.roomCount(b.root.visible?b:null),0),before,after:total,affected,gap:Math.max(0,before-total)},sun:{gain,loss,before:sunCoverage(api.baselineSun),after:sunCoverage(api.lightProfiles.map(p=>p.rows))},ground:{before:baselineGround,after:greenGround(s)},canopyBefore:originalCanopy,green:api.greenCoverage(),coverage:total?Math.round(served/total*100):0,reduced:+reduced.toFixed(2),culture:s.items.filter(i=>['craft','story','studio','tea'].includes(i.type)).length,solved:s.resolved.length,retained:buildings.length-Object.keys(s.buildingWorks).length};}
+function render(){const s=game.state;$('study-diagnosis').hidden=!diagnosis[h.observation()];$('budget-left').textContent=money(s.balance);$('budget-spent').textContent='已用 '+money(s.initial-s.balance)+' / 总额'+money(s.initial);$('undo-plan').disabled=!game.canUndo;$('undo-plan').title=game.canUndo?'撤销全局最近一步：'+(s.ledger.at(-1)?.label||'方案操作'):'暂无可撤销操作';inspectBuilding(api.selected);if(h.activeNode())inspectNode(h.activeNode());$('greening').disabled=s.greening;$('greening').textContent=s.greening?'已补绿 · 12万已计入':'三处补绿 · 12万';renderShop();renderMap();renderReport();knowledge?.inline('theory-context',h.observation());if(['water','human','gis'].includes(h.observation()))showStudy(h.observation());}
+function openIndicatorMap(layer){
+ if(tool)cancel();search='';$('map-search').value='';mapLayer=layer;$('map-layer').value=layer;view={x:0,y:0,w:840,h:900};renderMap();if(!$('map-dialog').open)$('map-dialog').showModal();
+}
+const shopIndicators = {
+ tree: {tags:['树冠覆盖 ↑','地面种植 ↑'], score:'生态环境', timing:'施工后更新', note:'新增树冠与树池面积计入绿化；重叠部分不重复计算，达到评分目标后不再加分。'},
+ rain: {tags:['地面种植 ↑','树冠覆盖 ↑','模拟产流减少 ↑'], score:'生态环境', timing:'施工后更新', note:'种植面积与模型中的植被冠层参与生态计分；产流改善随降雨情境变化，作为独立指标展示。'},
+ paving: {tags:['模拟产流减少 ↑'], score:'当前不直接计分', timing:'施工后更新', note:'减少这块铺装的模拟产流，不增加地面种植或树冠覆盖。'},
+ bench: {tags:['预计幸福度 ↑','人口变化（间接）'], score:'居民生活', timing:'月末结算', cap:'bench', note:'长椅改善月度生活体验；幸福度可能带动迁入，仍受住房容量限制。'},
+ tea: {tags:['文化交往设施 +1'], score:'社区延续', timing:'施工后更新', culture:true, note:'计入文化与交往设施数量；当前规则不直接增加幸福度或商业收入。'},
+ service: {tags:['步行服务覆盖 ↑','原住受益容量 ↑','预计幸福度 ↑'], score:'公共服务 · 居民生活', timing:'覆盖即时 / 生活月末', note:'按沿街巷 80 米步行范围计算。覆盖已有服务区可能没有新增收益，选址后核算实际变化。'},
+ parking: {tags:['预计整洁度 ↑','预计幸福度（间接）'], score:'居民生活', timing:'月末结算', cap:'parking', note:'规范停放改善月度整洁度，再间接影响幸福度。已有乱停阻路隐患仍需现场整治。'},
+ lamp: {tags:['预计幸福度 ↑','人口变化（间接）'], score:'居民生活', timing:'月末结算', cap:'lamp', note:'夜间照明改善生活体验，不增加白天日照，也不自动消除重点隐患。'},
+ craft: {tags:['文化交往设施 +1'], score:'社区延续', timing:'施工后更新', culture:true, note:'计入文化与交往设施数量；当前规则不单独计算游客或经营收入。'},
+ story: {tags:['文化交往设施 +1'], score:'社区延续', timing:'施工后更新', culture:true, note:'计入文化与交往设施数量；当前规则不单独计算文化传播范围。'},
+ studio: {tags:['文化交往设施 +1'], score:'社区延续', timing:'施工后更新', culture:true, note:'计入文化与交往设施数量；当前规则尚未单独计算就业和产业收入。'},
+ planter: {tags:['地面种植 ↑','树冠覆盖 ↑'], score:'生态环境', timing:'施工后更新', note:'花槽种植面积与模型中的小型植被冠层计入绿化；重叠面积不重复计入。'}
+};
+function shopIndicatorCard(item, state) {
+ const info=shopIndicators[item.id];
+ const count=info.culture ? state.items.filter(i=>['craft','story','studio','tea'].includes(i.type)).length : state.items.filter(i=>i.type===info.cap).length;
+ const limit=info.culture ? '文化设施计分 '+Math.min(count,3)+'/3 处；'+(count>=3?'已达上限，继续建设只增加设施数量。':'每新增一处可增加社区延续 1 分，合计最多 3 分。') : info.cap ? '本类生活增益 '+Math.min(count,3)+'/3 处；'+(count>=3?'已达上限，继续建设不再叠加该项生活增益。':'同类前 3 处参与月度生活预测，最终变化受取整与指标上限影响。') : '';
+ const upkeep=Math.ceil((state.items.length+1)/3)-Math.ceil(state.items.length/3);
+ return '<section class="shop-indicators" aria-label="关联指标"><div class="shop-indicator-tags">'+info.tags.map(tag=>'<span>'+esc(tag)+'</span>').join('')+'</div><dl><div><dt>关联评分</dt><dd>'+esc(info.score)+'</dd></div><div><dt>生效时间</dt><dd>'+esc(info.timing)+'</dd></div></dl><p>'+esc(info.note)+'</p>'+(limit?'<p class="shop-limit">'+esc(limit)+'</p>':'')+'<p class="shop-cost-effect">运营影响 · 预计月维护费增加 '+upkeep+' 万（每累计 3 处设施计 1 万，不足 3 处按 1 组）。实际总分以选址后预览为准。</p></section>';
+}
+function renderShop(){
+ const categories=['全部','自然与生态','街坊生活','广府与湾区'];
+ const state=game.state;
+ $('shop-categories').innerHTML=categories.map(v=>'<button class="'+(v===category?'active':'')+'" data-category="'+v+'">'+v+'</button>').join('');
+ $('shop-items').innerHTML=catalog.filter(c=>category==='全部'||c.category===category).map(c=>'<article><small>'+c.category+'</small><h3>'+c.name+'</h3><p>'+c.description+'</p>'+shopIndicatorCard(c,state)+'<div><b>'+money(c.price)+'</b><span>'+c.w+'×'+c.d+'m</span></div><button data-buy="'+c.id+'" '+(state.balance<c.price?'disabled':'')+'>'+(state.balance<c.price?'预算不足':'选择并选址 →')+'</button></article>').join('');
+}
 $('occupancy-scenario').onchange=e=>finish(game.setOccupancy(+e.target.value));
-function renderReport(){const s=game.state,m=metrics();$('occupancy-scenario').value=String(s.occupancy);$('report-summary').innerHTML='<div class="report-stats"><div><small>剩余预算</small><b>'+money(s.balance)+'</b></div><div><small>新增设施</small><b>'+s.items.length+' 处</b></div><div><small>示意步行服务覆盖</small><b>'+m.coverage+'%</b></div><div><small>示意树冠覆盖</small><b>'+m.green+'%</b></div></div><h3>同一个决定，几种影响</h3><table class="impact-table"><thead><tr><th>学科视角</th><th>原状 → 现方案</th><th>讨论什么</th></tr></thead><tbody><tr><td>人口地理 × 住房规划</td><td>'+m.housing.before+' → '+m.housing.after+' 人</td><td>周转涉及 '+m.housing.affected+' 人；原地容量缺口 '+m.housing.gap+' 人。租户和经营者如何参与？</td></tr><tr><td>自然地理 × 建筑物理</td><td>≥60 分钟楼层占比 '+m.sun.before+'% → '+m.sun.after+'%；保留民居 '+m.sun.gain+' 层变长、'+m.sun.loss+' 层变短</td><td>谁得到了阳光？腾地的收益有没有落到原来最暗的楼层？</td></tr><tr><td>景观生态 × 水文</td><td>地面种植率 '+m.ground.before+'% → '+m.ground.after+'%；冠层投影 '+m.canopyBefore+'% → '+m.green+'%</td><td>对比遮阴、土壤下渗和占用面积。腾空的硬地需要实际补绿才计入。</td></tr><tr><td>经济地理 × 社区治理</td><td>模拟支出 '+money(s.initial-s.balance)+'</td><td>改造期间怎样维持早餐、租住和制衣网络？谁承担搬迁与维护成本？</td></tr></tbody></table><p>房间数 '+m.housing.roomsBefore+' → '+m.housing.roomsAfter+' 间。每住宅层按建筑面积 × 72% ÷ 24 m²/间向下取整，再乘住宅层数。首层按商用。容量和周转人数按 '+s.occupancy+' 人/间估算。面积与入住人数都是情境假设。绿化分母固定为地图中部 77 × 116 m 的教学范围，地面种植率只计种植床和树池。</p><p>原有民居保留 '+m.retained+' / 20。祠堂保留原址。早餐档'+(originalLocation('breakfast',s)?'继续营业':'已撤除')+'。已改善'+m.solved+'处观察点，新增'+m.culture+'处文化或交往设施。</p><p>按'+rainfall+'毫米/1小时的教学降雨情境，新增雨水花园和透水铺装的示意产流差值为 '+m.reduced+' m³。它只比较这些小地块的下垫面，不预测街区积水深度。</p>';$('plan-note').value=s.notes.plan||'';$('report-notes').innerHTML='<h3>位置与设施便签</h3>'+Object.entries(s.notes).filter(([k])=>k!=='plan').map(([k,v])=>'<p><b>'+esc(noteLabel(k))+'</b><br>'+esc(v).replace(/\n/g,'<br>')+'</p>').join('')+s.pins.map(p=>'<p><b>位置便签 ('+p.x+', '+p.z+')</b><br>'+esc(p.text).replace(/\n/g,'<br>')+'</p>').join('');$('report-ledger').innerHTML=s.ledger.length?'<table><thead><tr><th>操作</th><th>模拟费用</th></tr></thead><tbody>'+s.ledger.map(l=>'<tr><td>'+esc(l.label)+'</td><td>'+money(l.cost)+'</td></tr>').join('')+'</tbody></table>':'<p>还没有支出。先走访街坊，再决定怎么花这笔钱。</p>';}
-function showStudy(value){knowledge?.inline('theory-context',value);const m=metrics();$('study-card').hidden=false;document.body.classList.add('observing');$('greening').hidden=true;const data=value==='water'?['自然地理 · 下垫面 · 灾害风险','雨下得一样，水为什么不同？','改变一块地面的透水性，会改变它的产流。地图上的高低与敏感性是教学合成情境；真实内涝还需地形、管网、降雨、暴露与脆弱性。','<label>一小时降雨情境 <select id="rain-scenario"><option value="30">30毫米</option><option value="60">60毫米</option><option value="100">100毫米</option></select></label><p>新增铺装/雨水花园的示意产流差值：'+m.reduced+' m³</p>']:value==='gis'?['地理信息技术 · 网络分析 · 规划','设施，放在哪里更方便？','同一个驿站，位置不同，沿路走到它的距离就不同。用简化路网最短距离，比较80米步行阈值内的示意住户覆盖。','示意服务覆盖 '+m.coverage+'%<br><small>按估算居住容量加权，不是真实人口统计。距离含入口到路网的近似接入。</small>']:['人文地理 · 产业 · 广府文化','街坊的日常，也是社区的价值。','早餐的便利、较低的生活门槛、邻里互助与制衣产业网络，都是值得延续的资源。广府文化连接本地日常，也通过粤语、手艺和设计与湾区及世界交流。','住宅保留 '+m.retained+'/20 · 早餐档'+(originalLocation('breakfast',game.state)?'继续营业':'已撤除')+'<br>新增文化/交往设施 '+m.culture+' 处'];$('study-domain').textContent=data[0];$('study-title').textContent=data[1];$('study-body').textContent=data[2];$('study-metrics').innerHTML=data[3];if(value==='water'){$('rain-scenario').value=String(rainfall);$('rain-scenario').onchange=e=>{rainfall=+e.target.value;showStudy('water');renderMap();};}}
+function renderReport(){const s=game.state,m=metrics();if(typeof VillageOps!=='undefined')VillageOps.update(s,m,openIndicatorMap,(book,income,cost)=>{if(!game.settleMonth(book,income,cost))return false;save();render();return true;});$('occupancy-scenario').value=String(s.occupancy);$('report-summary').innerHTML='<div class="report-stats"><div><small>剩余预算</small><b>'+money(s.balance)+'</b></div><div><small>新增设施</small><b>'+s.items.length+' 处</b></div><div><small>示意步行服务覆盖</small><b>'+m.coverage+'%</b></div><div><small>示意树冠覆盖</small><b>'+m.green+'%</b></div></div><h3>同一个决定，几种影响</h3><table class="impact-table"><thead><tr><th>学科视角</th><th>原状 → 现方案</th><th>讨论什么</th></tr></thead><tbody><tr><td>人口地理 × 住房规划</td><td>'+m.housing.before+' → '+m.housing.after+' 人</td><td>周转涉及 '+m.housing.affected+' 人；原地容量缺口 '+m.housing.gap+' 人。租户和经营者如何参与？</td></tr><tr><td>自然地理 × 建筑物理</td><td>≥60 分钟楼层占比 '+m.sun.before+'% → '+m.sun.after+'%；保留民居 '+m.sun.gain+' 层变长、'+m.sun.loss+' 层变短</td><td>谁得到了阳光？腾地的收益有没有落到原来最暗的楼层？</td></tr><tr><td>景观生态 × 水文</td><td>地面种植率 '+m.ground.before+'% → '+m.ground.after+'%；冠层投影 '+m.canopyBefore+'% → '+m.green+'%</td><td>对比遮阴、土壤下渗和占用面积。腾空的硬地需要实际补绿才计入。</td></tr><tr><td>经济地理 × 社区治理</td><td>模拟支出 '+money(s.initial-s.balance)+'</td><td>改造期间怎样维持早餐、租住和制衣网络？谁承担搬迁与维护成本？</td></tr></tbody></table><p>房间数 '+m.housing.roomsBefore+' → '+m.housing.roomsAfter+' 间。每住宅层按建筑面积 × 72% ÷ 24 m²/间向下取整，再乘住宅层数。首层按商用。容量和周转人数按 '+s.occupancy+' 人/间估算。面积与入住人数都是情境假设。绿化分母固定为地图中部 77 × 116 m 的教学范围，地面种植率只计种植床和树池。</p><p>原有民居保留 '+m.retained+' / 20。祠堂保留原址。早餐档'+(originalLocation('breakfast',s)?'继续营业':'已撤除')+'。已改善'+m.solved+'处观察点，新增'+m.culture+'处文化或交往设施。</p><p>按'+rainfall+'毫米/1小时的教学降雨情境，新增雨水花园和透水铺装的示意产流差值为 '+m.reduced+' m³。它只比较这些小地块的下垫面，不预测街区积水深度。</p>';$('plan-note').value=s.notes.plan||'';$('report-notes').innerHTML='<h3>位置与设施便签</h3>'+Object.entries(s.notes).filter(([k])=>k!=='plan').map(([k,v])=>'<p><b>'+esc(noteLabel(k))+'</b><br>'+esc(v).replace(/\n/g,'<br>')+'</p>').join('')+s.pins.map(p=>'<p><b>位置便签 ('+p.x+', '+p.z+')</b><br>'+esc(p.text).replace(/\n/g,'<br>')+'</p>').join('');$('report-ledger').innerHTML=s.ledger.length?'<table><thead><tr><th>操作</th><th>模拟费用</th></tr></thead><tbody>'+s.ledger.map(l=>'<tr><td>'+esc(l.label)+'</td><td>'+money(l.cost)+'</td></tr>').join('')+'</tbody></table>':'<p>还没有支出。先走访街坊，再决定怎么花这笔钱。</p>';}
+function showStudy(value){knowledge?.inline('theory-context',value);const m=metrics();$('study-card').hidden=false;document.body.classList.add('observing');$('greening').hidden=true;const data=value==='water'?['自然地理 · 下垫面 · 灾害风险','雨下得一样，水为什么不同？','改变一块地面的透水性，会改变它的产流。地图上的高低与敏感性是教学合成情境；真实内涝还需地形、管网、降雨、暴露与脆弱性。','<label>一小时降雨情境 <select id="rain-scenario"><option value="30">30毫米</option><option value="60">60毫米</option><option value="100">100毫米</option></select></label><p>新增铺装/雨水花园的示意产流差值：'+m.reduced+' m³</p>']:value==='gis'?['地理信息技术 · 网络分析 · 规划','设施，放在哪里更方便？','同一个驿站，位置不同，沿路走到它的距离就不同。用简化路网最短距离，比较80米步行阈值内的示意住户覆盖。','示意服务覆盖 '+m.coverage+'%<br><small>按估算居住容量加权，不是真实人口统计。距离含入口到路网的近似接入。</small>']:['人文地理 · 产业 · 广府文化','街坊的日常，也是社区的价值。','早餐的便利、较低的生活门槛、邻里互助与制衣产业网络，都是值得延续的资源。广府文化连接本地日常，也通过粤语、手艺和设计与湾区及世界交流。','住宅保留 '+m.retained+'/20 · 早餐档'+(originalLocation('breakfast',game.state)?'继续营业':'已撤除')+'<br>新增文化/交往设施 '+m.culture+' 处'];$('study-domain').textContent=data[0];$('study-title').textContent=data[1];$('study-body').textContent=data[2];$('study-metrics').innerHTML=data[3];if(value==='water'){$('rain-scenario').value=String(rainfall);$('rain-scenario').onchange=e=>{rainfall=+e.target.value;showStudy('water');renderMap();renderReport();};}}
 function mapData(){const out=[];for(const n of sceneNodes.values())if(n.root.visible&&(n.type!=='prop'||mapLayer==='objects'||search))out.push({id:n.id,kind:'node',x:n.x,z:n.z,label:n.title,color:n.type==='hazard'?(game.state.resolved.includes(n.id)?'#70975b':'#b77b46'):'#3e715c'});for(const b of buildings)out.push({id:String(b.config.id),kind:'building',x:b.config.x,z:b.config.z,label:'民居'+String(b.config.id+1).padStart(2,'0')+(!b.root.visible?' · 已腾地':''),color:'#849284'});for(const i of game.state.items)out.push({id:i.id,kind:'item',x:i.x,z:i.z,label:itemSpec(i.type).name,color:'#4b88a4'});for(const p of game.state.pins)out.push({id:p.id,kind:'note',x:p.x,z:p.z,label:'便签·'+p.text.slice(0,8)+(p.text.length>8?'…':''),color:'#9a7bb0'});return out;}
 const px=x=>(x+60)*6.6,py=z=>(z+68)*6.3;
-function renderMap(){if(!tool)$('map-explanation').textContent=mapLayer==='green'?'浅绿轮廓是树冠投影，深绿矩形是地面种植床或树池。点「怎么看这张图」查看改造前后比例。':'地图与场景共享游戏位置数据。';$('map-diagnosis').hidden=!diagnosis[mapLayer]||!!tool;const data=mapData().filter(v=>!search||v.label.toLowerCase().includes(search.toLowerCase()));let svg='<svg id="map-svg" viewBox="'+[view.x,view.y,view.w,view.h].join(' ')+'" role="img" aria-label="可缩放的街区地图，含道路、建筑、祠堂、商铺和新设施"><rect width="840" height="900" fill="#eeeee3"/><rect x="'+px(44)+'" y="'+py(-60)+'" width="40" height="756" fill="#9dc1b5"/>';
+function renderMap(){if(!tool)$('map-explanation').textContent=mapLayer==='green'?'浅绿轮廓是树冠投影，深绿矩形是地面种植床或树池。点「怎么看这张图」查看改造前后比例。':'地图与场景共享游戏位置数据。';$('map-diagnosis').hidden=!diagnosis[mapLayer]||!!tool;const data=mapData().filter(v=>mapLayer==='hazards'?sceneNodes.get(v.id)?.type==='hazard'&&!game.state.resolved.includes(v.id):mapLayer==='housing'?v.kind==='building':true).filter(v=>!search||v.label.toLowerCase().includes(search.toLowerCase()));let svg='<svg id="map-svg" viewBox="'+[view.x,view.y,view.w,view.h].join(' ')+'" role="img" aria-label="可缩放的街区地图，含道路、建筑、祠堂、商铺和新设施"><rect width="840" height="900" fill="#eeeee3"/><rect x="'+px(44)+'" y="'+py(-60)+'" width="40" height="756" fill="#9dc1b5"/>';
  if(mapLayer==='water')for(let x=-48;x<44;x+=8)for(let z=-56;z<64;z+=8){let pressure=(z+60)/128*.55+.2+(game.state.resolved.includes('drain')?0:.2*Math.exp(-((x-1.7)**2+(z+8)**2)/300));for(const i of game.state.items)if(['rain','paving'].includes(i.type))pressure-=.16*Math.exp(-((x-i.x)**2+(z-i.z)**2)/70);const alpha=Math.max(.02,Math.min(.5,pressure*rainfall/120));svg+='<rect x="'+px(x)+'" y="'+py(z)+'" width="53" height="51" fill="#c49472" opacity="'+alpha.toFixed(2)+'"/>';}
  for(const road of api.roadNetwork){svg+='<polyline points="'+road.points.map(p=>px(p[0])+','+py(p[1])).join(' ')+'" fill="none" stroke="#d0d0bd" stroke-width="'+road.width*6.5+'" stroke-linecap="round"/><polyline points="'+road.points.map(p=>px(p[0])+','+py(p[1])).join(' ')+'" fill="none" stroke="#fffdf2" stroke-width="'+Math.max(2,road.width*6.5-3)+'"/>';}
  svg+='<rect x="'+px(-14)+'" y="'+py(-36)+'" width="185" height="95" fill="#d7d4b7" stroke="#b6b391"/><rect x="'+px(-8)+'" y="'+py(-50)+'" width="106" height="76" fill="#c4b696" stroke="#8f8061"/><text x="'+px(0)+'" y="'+py(-29)+'" class="map-road">祠堂前埕 / 街坊活动</text>';
- const serviceItems=serviceLocations(game.state);for(const b of buildings){const c=b.config,co=Math.cos(c.rotation),si=Math.sin(c.rotation);let fill=b.root.visible?'#b7beb0':'#eae5cf';if(b.root.visible&&mapLayer==='light')fill=new THREE.Color().setHSL(.03+Math.min(api.lightProfiles[c.id].middle/300,1)*.22,.4,.67).getStyle();if(b.root.visible&&mapLayer==='service')fill=Math.min(...serviceItems.map(i=>walkDistance({x:c.x+Math.sin(c.rotation)*c.d/2,z:c.z+Math.cos(c.rotation)*c.d/2},i)))<=80?'#9ebca0':'#c7b6a0';svg+='<polygon points="'+[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,d])=>px(c.x+a*c.w/2*co+d*c.d/2*si)+','+py(c.z-a*c.w/2*si+d*c.d/2*co)).join(' ')+'" fill="'+fill+'" stroke="#8d9988" stroke-width="1"/>';}
+ const serviceItems=serviceLocations(game.state);for(const b of buildings){const c=b.config,co=Math.cos(c.rotation),si=Math.sin(c.rotation);let fill=b.root.visible?'#b7beb0':'#eae5cf';if(mapLayer==='housing' && (!b.root.visible||api.livingCapacity(b)<api.livingCapacity(api.baseBuildings[c.id])))fill='#d58e70';if(b.root.visible&&mapLayer==='light')fill=new THREE.Color().setHSL(.03+Math.min(api.lightProfiles[c.id].middle/300,1)*.22,.4,.67).getStyle();if(b.root.visible&&mapLayer==='service')fill=Math.min(...serviceItems.map(i=>walkDistance({x:c.x+Math.sin(c.rotation)*c.d/2,z:c.z+Math.cos(c.rotation)*c.d/2},i)))<=80?'#9ebca0':'#c7b6a0';svg+='<polygon data-kind="building" data-id="'+c.id+'" tabindex="0" role="button" aria-label="选择民居 '+(c.id+1)+'" style="cursor:pointer" points="'+[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,d])=>px(c.x+a*c.w/2*co+d*c.d/2*si)+','+py(c.z-a*c.w/2*si+d*c.d/2*co)).join(' ')+'" fill="'+fill+'" stroke="#8d9988" stroke-width="1"/>';}
  if(mapLayer==='green'){
   for(const c of [...h.greenSpaces,...(game.state.greening?h.trialCanopies:[])])svg+='<ellipse cx="'+px(c.x)+'" cy="'+py(c.z)+'" rx="'+c.r*6.6+'" ry="'+c.r*6.3+'" fill="#739f57" fill-opacity=".35" stroke="#4d773b"/>';
   for(const c of [...h.greenSpaces.filter(c=>c.ground),...game.state.items.filter(i=>['tree','planter','rain'].includes(i.type)).map(i=>({...i,w:itemSpec(i.type).w-.2,d:itemSpec(i.type).d-.2})),...(game.state.greening?h.trialCanopies.map(c=>({...c,w:1.2,d:1.2})):[])])svg+='<rect x="'+px(c.x-c.w/2)+'" y="'+py(c.z-c.d/2)+'" width="'+c.w*6.6+'" height="'+c.d*6.3+'" fill="#365b36"/>';
  }
  for(const [x,z,label,rotate] of [[-42,-3,'外缘主路',-90],[0,1,'商业生活巷',-90],[23,10,'东西横巷',0],[18,46,'东侧支巷',-90],[47,-27,'河涌',-90]])svg+='<text x="'+px(x)+'" y="'+py(z)+'" class="map-road" transform="rotate('+rotate+' '+px(x)+' '+py(z)+')">'+label+'</text>';
  for(const v of data){const x=px(v.x),y=py(v.z),small=v.kind==='building';let labelY=y+(small?4:-12);if(v.id==='pit')labelY=y+25;if(v.id==='bikes')labelY=y+23;svg+='<g data-kind="'+v.kind+'" data-id="'+v.id+'" tabindex="0" role="button" aria-label="'+esc(v.label)+'"><circle cx="'+x+'" cy="'+y+'" r="'+(small?2.5:6)+'" fill="'+v.color+'"/><text x="'+(small?x:x+9)+'" y="'+labelY+'" class="'+(small?'map-building':'map-poi')+'">'+esc(v.label)+'</text></g>';}
- svg+='</svg>';$('district-map').innerHTML=svg;$('map-directory').innerHTML=data.map(v=>'<button data-kind="'+v.kind+'" data-id="'+v.id+'"><i style="background:'+v.color+'"></i>'+esc(v.label)+'</button>').join('');$('map-explanation').textContent=tool?.type==='note'?'点击任意地点写便签；便签免费，不改变土地用途。':tool?$('placement-instruction').textContent+'。空白处点击选址，红线区域与既有设施不可重叠。':mapLayer==='water'?'雨洪层是合成情境：用南端低洼趋势与排水口维护状态示意敏感性，不是康乐村灾害风险图。':mapLayer==='light'?'颜色根据简化楼体遮挡代理生成，并非真实日照小时数。':mapLayer==='service'?'绿色表示简化路网80米阈值内的示意服务覆盖；不是法定配置标准。':'缩放、搜索和点击定位。此图与游戏位置一致，并非真实导航地图。';
+ svg+='</svg>';$('district-map').innerHTML=svg;$('map-directory').innerHTML=data.map(v=>'<button data-kind="'+v.kind+'" data-id="'+v.id+'"><i style="background:'+v.color+'"></i>'+esc(v.label)+'</button>').join('');$('map-explanation').textContent=tool?.type==='note'?'点击任意地点写便签；便签免费，不改变土地用途。':tool?$('placement-instruction').textContent+'。空白处点击选址，红线区域与既有设施不可重叠。':mapLayer==='water'?'雨洪层是合成情境：用南端低洼趋势与排水口维护状态示意敏感性，不是康乐村灾害风险图。':mapLayer==='light'?'颜色根据简化楼体遮挡代理生成，并非真实日照小时数。':mapLayer==='service'?'绿色表示简化路网80米阈值内的示意服务覆盖；不是法定配置标准。':mapLayer==='housing'?'橙色楼块表示居住容量较开局减少，可点选查看。':mapLayer==='hazards'?'地图目录仅列出尚待现场改善的重点隐患。':'缩放、搜索和点击定位。此图与游戏位置一致，并非真实导航地图。';
  const mini=$('mini-map');mini.innerHTML=svg.replace('id="map-svg"','').replace(/tabindex="0"/g,'');}
 function zoom(f){const nw=Math.max(170,Math.min(840,view.w*f)),nh=nw*900/840;view.x+=(view.w-nw)/2;view.y+=(view.h-nh)/2;view.w=nw;view.h=nh;const s=$('map-svg');if(s)s.setAttribute('viewBox',[view.x,view.y,view.w,view.h].join(' '));}
-function targetFromMap(target){const el=target.closest('[data-kind]');if(!el)return false;const {kind,id}=el.dataset;if(kind==='note'){pinDraft={...game.state.pins.find(p=>p.id===id)};openPin();return true;}if(kind==='node')api.inspectNode(id);else if(kind==='building')api.select(+id);else{selectItem(id);return true;}h.focus();$('map-dialog').close();return true;}
+function targetFromMap(target){const el=target.closest('[data-kind]');if(!el)return false;const {kind,id}=el.dataset;if(kind==='note'){pinDraft={...game.state.pins.find(p=>p.id===id)};openPin();return true;}if(kind==='node')api.inspectNode(id);else if(kind==='building'){api.select(+id);if($('panel').classList.contains('compact-tools'))$('toolFold')?.click();}else{selectItem(id);return true;}h.focus();$('map-dialog').close();return true;}
 let pan=null;
 $('district-map').addEventListener('pointerdown',e=>{pan={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false,target:e.target};$('district-map').setPointerCapture(e.pointerId);});$('district-map').addEventListener('pointermove',e=>{if(!pan||tool)return;const dx=e.clientX-pan.x,dy=e.clientY-pan.y;if(Math.hypot(dx,dy)>5)pan.moved=true;const rect=$('district-map').getBoundingClientRect();view.x=pan.vx-dx*view.w/Math.max(1,rect.width);view.y=pan.vy-dy*view.h/Math.max(1,rect.height);$('map-svg')?.setAttribute('viewBox',[view.x,view.y,view.w,view.h].join(' '));});$('district-map').addEventListener('pointerup',e=>{if(pan?.moved){pan=null;return;}const clicked=pan?.target||e.target;pan=null;if(tool){const svg=$('map-svg'),point=svg.createSVGPoint();point.x=e.clientX;point.y=e.clientY;const p=point.matrixTransform(svg.getScreenCTM().inverse());chooseSite(p.x/6.6-60,p.y/6.3-68);}else targetFromMap(clicked);});$('district-map').addEventListener('pointercancel',()=>{pan=null;});$('district-map').addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY>0?1.2:1/1.2);},{passive:false});
 const cultureStops=[
@@ -301,17 +397,17 @@ $('download-culture').onclick=()=>{
  const a=document.createElement('a');a.href=url;a.download='xiangli-cantonese-walk.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
 };
 $('mini-map').onclick=e=>targetFromMap(e.target);$('district-map').addEventListener('keydown',e=>{if(!tool&&['Enter',' '].includes(e.key)){e.preventDefault();targetFromMap(e.target);}});$('map-directory').onclick=e=>targetFromMap(e.target);$('map-search').oninput=e=>{search=e.target.value.trim();renderMap();};$('map-layer').onchange=e=>{mapLayer=e.target.value;renderMap();};$('map-zoom-in').onclick=()=>zoom(1/1.3);$('map-zoom-out').onclick=()=>zoom(1.3);$('map-fit').onclick=()=>{view={x:0,y:0,w:840,h:900};renderMap();};
-$('open-map').onclick=$('expand-map').onclick=()=>{renderMap();$('map-dialog').showModal();};$('close-map').onclick=()=>$('map-dialog').close();$('open-shop').onclick=()=>{renderShop();$('shop-dialog').showModal();};$('close-shop').onclick=()=>$('shop-dialog').close();$('shop-categories').onclick=e=>{const v=e.target.closest('[data-category]');if(v){category=v.dataset.category;renderShop();}};$('shop-items').onclick=e=>{const b=e.target.closest('[data-buy]');if(b&&!b.disabled)start('new',b.dataset.buy);};$('cancel-placement').onclick=cancel;
+$('expand-map').onclick=()=>{renderMap();$('map-dialog').showModal();};$('close-map').onclick=()=>$('map-dialog').close();$('open-shop').onclick=()=>{renderShop();$('shop-dialog').showModal();};$('close-shop').onclick=()=>$('shop-dialog').close();$('shop-categories').onclick=e=>{const v=e.target.closest('[data-category]');if(v){category=v.dataset.category;renderShop();}};$('shop-items').onclick=e=>{const b=e.target.closest('[data-buy]');if(b&&!b.disabled)start('new',b.dataset.buy);};$('cancel-placement').onclick=cancel;
 $('renovate').onclick=buyRenovation;$('resolve').onclick=buyHazard;$('greening').onclick=buyGreening;$('undo-plan').onclick=()=>finish(game.undo());let workId=null;
-$('move-building').onclick=()=>{
+function openBuildingWork(selectedWork=null){
  workId=api.selected;$('sun-prediction').value='';
  const base=api.baseBuildings[workId],c=base.config,area=c.w*c.d*(c.floors+1),next=api.replacementConfig(c);
  const before=api.livingCapacity(base),after=api.livingCapacity({config:next});
- $('building-options').innerHTML='<p>民居 '+(workId+1)+' · 原有估算容量 '+before+' 人。两种方案均需要为约 '+before+' 人安排施工周转。原地重建约容纳 '+after+' 人。腾地方案的原地住宅容量为 0。</p><p>拆除腾地按原建筑面积 × 0.65 万元/㎡；退界重建按原建筑面积 × 1.35 万元/㎡，均向上取整至万元，合并示意拆建和安置支出。4500 万是小街区的教学额度，参考广州项目的资金量级设定。现实还需逐户协商、核算和审批。</p><p>讨论关键词 · 居住容量（Housing Capacity） · 周转安置（Temporary Relocation） · 产业集聚（Industrial Agglomeration）</p>';
+ $('building-options').innerHTML='<p>民居 '+(workId+1)+' · 原有估算容量 '+before+' 人。两种方案均需要为约 '+before+' 人安排施工周转。原地重建约容纳 '+after+' 人。腾地方案的原地住宅容量为 0。</p><p>拆除腾地按原建筑面积 × 0.65 万元/㎡；退界重建按原建筑面积 × 1.35 万元/㎡，均向上取整至万元，合并示意拆建和安置支出。1500 万是小街区的教学额度，参考广州项目的资金量级设定。现实还需逐户协商、核算和审批。</p><p>讨论关键词 · 居住容量（Housing Capacity） · 周转安置（Temporary Relocation） · 产业集聚（Industrial Agglomeration）</p>';
  for(const [button,work,title] of [['clear-building','clear','拆除腾地'],['rebuild-building','rebuild','退界重建']]){
-  $(button).textContent=title+' · '+money(buildingCost(area,work));$(button).disabled=buildingCost(area,work)>game.state.balance;
+  $(button).hidden=!!selectedWork&&selectedWork!==work;$(button).textContent=(selectedWork?'确认':'')+title+' · '+money(buildingCost(area,work));$(button).disabled=buildingCost(area,work)>game.state.balance;
   $(button).onclick=()=>{const before=metrics(),prior=api.lightProfiles.map(p=>p.rows.slice()),prediction=$('sun-prediction').value;
-   if(!finish(game.changeBuilding(workId,work,area)))return;
+   if(!finish(()=>game.changeBuilding(workId,work,area)))return;
    $('building-dialog').close();const after=metrics();
    const improved=api.lightProfiles.filter(p=>p.id!==workId&&p.rows.some((v,f)=>v>(prior[p.id][f]??Infinity)));
    const fits=prediction?(improved.length>0)===(prediction==='gain')?' 结果与你的预测一致。':' 结果与你的预测不同。':'';
@@ -320,20 +416,29 @@ $('move-building').onclick=()=>{
  }
  $('building-dialog').showModal();
 };
+$('move-building').onclick=()=>openBuildingWork();
+for (const [buttonId, work] of [['panel-clear-building','clear'], ['panel-rebuild-building','rebuild']]) {
+ if ($(buttonId)) $(buttonId).onclick=()=>openBuildingWork(work);
+}
 $('relocate-building').onclick=()=>start('object','building-'+api.selected);
 $('close-building').onclick=()=>$('building-dialog').close();$('move-stall').onclick=()=>start('object',h.activeNode());
 $('remove-original').onclick=()=>{
  const id=h.activeNode(),spec=objectSpec(id);
  if(!spec)return;
  const before=metrics(),old=originalLocation(id,game.state);
- if(finish(game.editObject(id,spec.name,spec.remove,null)))reviewObject(id,before,old,null);
-};$('close-item').onclick=()=>$('item-dialog').close();$('move-item').onclick=()=>{$('item-dialog').close();start('move',chosenItem);};$('remove-item').onclick=()=>{if(finish(game.removeItem(chosenItem)))$('item-dialog').close();};$('plan-report').onclick=()=>{renderReport();$('report-dialog').showModal();};$('close-report').onclick=()=>$('report-dialog').close();$('download-plan').onclick=()=>{const blob=new Blob([JSON.stringify({title:'巷里社区提案',state:game.state,metrics:metrics(),winterSunByBuilding:api.lightProfiles.map(p=>({id:p.id+1,before:api.baselineSun[p.id],after:p.rows})),coordinateSystem:'虚构局部平面坐标（米），不能直接定位真实场地',learningTerms:window.VillageKnowledge?.terms.map(t=>({zh:t.zh,en:t.en,scope:t.status})),limits:'所有价格、住户和雨洪参数均为教学设定；不是实际工程报价或风险评估。'},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='xiangli-community-plan.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);};
+ if(finish(()=>game.editObject(id,spec.name,spec.remove,null)))reviewObject(id,before,old,null);
+};$('close-item').onclick=()=>$('item-dialog').close();$('move-item').onclick=()=>{$('item-dialog').close();start('move',chosenItem);};$('remove-item').onclick=()=>{if(finish(()=>game.removeItem(chosenItem)))$('item-dialog').close();};$('plan-report').onclick=()=>{renderReport();$('report-dialog').showModal();};$('close-report').onclick=()=>$('report-dialog').close();$('download-plan').onclick=()=>{const blob=new Blob([JSON.stringify({title:'巷里社区提案',state:game.state,metrics:metrics(),winterSunByBuilding:api.lightProfiles.map(p=>({id:p.id+1,before:api.baselineSun[p.id],after:p.rows})),coordinateSystem:'虚构局部平面坐标（米），不能直接定位真实场地',learningTerms:window.VillageKnowledge?.terms.map(t=>({zh:t.zh,en:t.en,scope:t.status})),limits:'所有价格、住户和雨洪参数均为教学设定；不是实际工程报价或风险评估。'},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='xiangli-community-plan.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);};
 function noteLabel(key){if(key==='plan')return '整份方案';if(key.startsWith('building-'))return '民居'+(Number(key.slice(9))+1);if(key.startsWith('node-'))return sceneNodes.get(key.slice(5))?.title||key;if(key.startsWith('item-')){const i=game.state.items.find(i=>i.id===key.slice(5));return i?itemSpec(i.type).name+' ('+i.x+', '+i.z+')':'已撤回设施的便签';}return key;}
 function openPin(){$('pin-note-location').textContent='游戏坐标：('+pinDraft.x+', '+pinDraft.z+')';$('pin-note-text').value=pinDraft.text||'';$('delete-pin-note').hidden=!pinDraft.id;$('pin-note-dialog').showModal();}
 $('map-add-note').onclick=()=>{tool={type:'note'};ghost.visible=false;$('placement-bar').hidden=false;$('placement-instruction').textContent='添加位置便签 · 免费 · 点击任意地点';$('map-explanation').textContent='点击任意地点写便签：可以是新点子，也可以是值得保留的生活。便签不改变土地用途。';};
 $('close-pin-note').onclick=()=>$('pin-note-dialog').close();$('save-pin-note').onclick=()=>{const t=$('pin-note-text').value;const result=pinDraft.id?game.editPin(pinDraft.id,t):game.addPin(pinDraft.x,pinDraft.z,t);if(finish(result))$('pin-note-dialog').close();};$('delete-pin-note').onclick=()=>{if(pinDraft?.id&&finish(game.deletePin(pinDraft.id)))$('pin-note-dialog').close();};
 $('save-selection-note').onclick=()=>finish(game.setNote(noteTarget,$('selection-note').value));$('save-item-note').onclick=()=>finish(game.setNote('item-'+chosenItem,$('item-note').value));$('save-plan-note').onclick=()=>finish(game.setNote('plan',$('plan-note').value));
 $('download-review').onclick=()=>{const s=game.state,m=metrics();let text='# 巷里社区更新提案（供讨论）\n\n这是一份公众构想记录，尚未经场地核验或专业评估。场景、费用和指标均为教学设定，不能直接用于施工。\n\n## 总体想法\n\n'+(s.notes.plan||'未填写，可在讨论时补充。')+'\n\n## 预算\n\n初始'+money(s.initial)+'；已用'+money(s.initial-s.balance)+'；剩余'+money(s.balance)+'。\n\n## 改造清单\n\n'+s.ledger.map(l=>'- '+l.label+'：'+money(l.cost)).join('\n')+'\n\n## 新建设施与位置\n\n'+s.items.map(i=>'- '+itemSpec(i.type).name+'，模拟坐标('+i.x+', '+i.z+')；理由：'+(s.notes['item-'+i.id]||'未填写')).join('\n')+'\n\n## 地点便签\n\n'+Object.entries(s.notes).filter(([k])=>k!=='plan'&&!k.startsWith('item-')).map(([k,v])=>'### '+noteLabel(k)+'\n\n'+v).join('\n\n')+'\n\n'+s.pins.map(p=>'### 模拟坐标('+p.x+', '+p.z+')\n\n'+p.text).join('\n\n')+'\n\n## 教学对照\n\n估算出租房间 '+m.housing.roomsBefore+' → '+m.housing.roomsAfter+' 间；按 '+m.housing.peoplePerRoom+' 人/间，居住容量 '+m.housing.before+' → '+m.housing.after+' 人；周转涉及 '+m.housing.affected+' 人；容量缺口 '+m.housing.gap+' 人。\n\n保留民居 '+m.sun.gain+' 个楼层冬至日照变长、'+m.sun.loss+' 个变短。地面种植率 '+m.ground.before+'% → '+m.ground.after+'%；树冠覆盖 '+m.canopyBefore+'% → '+m.green+'%；示意步行服务覆盖'+m.coverage+'%；新增小地块示意产流差值'+m.reduced+'m³。\n\n## 供规划人员与居民讨论的问题\n\n- 场地现状、产权、地下管线和可用空间是否支持？\n- 谁受益、谁可能受到影响，是否充分协商？\n- 真实造价、维护主体与后续费用如何落实？\n- 需要哪些补充调研、测绘和专业评估？\n\n本应用不自动收集或上传本提案，由作者决定是否分享。\n';const blob=new Blob([text],{type:'text/markdown;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='xiangli-community-proposal.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);};
-function reset(){cancel();game.reset();apply();h.returnToStart();toast('已开始新方案，预算恢复4500万。');}$('reset').onclick=reset;
-apply();return {game,roots,undo(){return finish(game.undo());},renderControls:render,chooseSite,showMap(){renderMap();if(!$("map-dialog").open)$("map-dialog").showModal();},pickMeshes(){const a=[];for(const root of roots.values())root.traverse(o=>{if(o.isMesh)a.push(o);});return a;},validate,place,start,cancel,preview,pickSite,inspectBuilding,inspectNode,buyRenovation,buyHazard,buyGreening,selectItem,showStudy,metrics,walkDistance,renderMap,reset,get tool(){return tool;}};
+function reset(){cancel();game.reset();apply();h.returnToStart();toast('已开始新方案，预算恢复1500万。');}$('reset').onclick=reset;
+apply();return {game,roots,undo(){return finish(game.undo());},renderControls:render,chooseSite,openBuildingMap(){
+ if(tool)cancel();
+ search='';$('map-search').value='';mapLayer='life';$('map-layer').value='life';
+ view={x:0,y:0,w:840,h:900};this.showMap();
+ $('map-explanation').textContent='点击楼栋轮廓或建筑编号，即可定位并展开这栋楼的操作。';
+},showMap(){renderMap();if(!$("map-dialog").open)$("map-dialog").showModal();},pickMeshes(){const a=[];for(const root of roots.values())root.traverse(o=>{if(o.isMesh)a.push(o);});return a;},validate,place,start,cancel,preview,pickSite,inspectBuilding,inspectNode,buyRenovation,buyHazard,buyGreening,selectItem,showStudy,metrics,walkDistance,renderMap,reset,get tool(){return tool;}};
 };
