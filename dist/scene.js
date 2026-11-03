@@ -48,7 +48,8 @@ function wallTexture(name,base,tile){const fresh=name==='clean';return tex(name,
  }
  noise(g,w,h,65000,fresh?.08:.24);
  });}
-const wallColors=['#b1a79a','#c3c0ae','#a9b0ab','#a18675','#c8beaa','#a2a49f'];
+// Faded ceramic and painted plaster colours seen in the Guangzhou reference.
+const wallColors=['#c7c6bf','#ddd8ca','#c4cecb','#c89c91','#d2b5a6','#b8bcc0'];
 wallColors.forEach((c,i)=>{const t=wallTexture('wall'+i,c,i!==0&&i!==5);blendBakedTexture(t,blenderAssets?.maps.wall,.48);materials['wall'+i]=new THREE.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:.025,roughness:.97});});
 const clean=wallTexture('clean','#e1ddce',true);materials.clean=new THREE.MeshStandardMaterial({map:clean,bumpMap:clean,bumpScale:.012,roughness:.85});
 const asphalt=tex('asphalt',768,768,(g,w,h)=>{g.fillStyle='#7b7a73';g.fillRect(0,0,w,h);noise(g,w,h,65000,.55);for(let i=0;i<45;i++){const x=rand()*w,y=rand()*h,r=range(12,90),gr=g.createRadialGradient(x,y,1,x,y,r);gr.addColorStop(0,i%3?'#2c30294a':'#a9a59855');gr.addColorStop(1,'#33392f00');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);}for(let i=0;i<24;i++){g.beginPath();g.strokeStyle='#282d26aa';g.lineWidth=range(.6,2);let x=rand()*w,y=rand()*h;g.moveTo(x,y);for(let k=0;k<10;k++){x+=range(-22,22);y+=range(6,23);g.lineTo(x,y);}g.stroke();}});asphalt.wrapS=asphalt.wrapT=THREE.RepeatWrapping;asphalt.repeat.set(12,14);
@@ -68,7 +69,38 @@ const paving=tex('paving',512,512,(g,w,h)=>{g.fillStyle='#a5a49a';g.fillRect(0,0
 const fan=tex('fan',128,128,(g)=>{g.clearRect(0,0,128,128);g.fillStyle='#515650';g.beginPath();g.arc(64,64,53,0,Math.PI*2);g.fill();g.strokeStyle='#9a9c91';g.lineWidth=2;for(let r=10;r<55;r+=6){g.beginPath();g.arc(64,64,r,0,Math.PI*2);g.stroke();}for(let i=0;i<20;i++){const a=i*Math.PI/10;g.beginPath();g.moveTo(64,64);g.lineTo(64+Math.cos(a)*53,64+Math.sin(a)*53);g.stroke();}g.fillStyle='#acada0';g.beginPath();g.arc(64,64,9,0,Math.PI*2);g.fill();});materials.fan=new THREE.MeshStandardMaterial({map:fan,transparent:true,roughness:.85});
 const shade=tex('shade',128,128,g=>{const gr=g.createRadialGradient(64,64,4,64,64,64);gr.addColorStop(0,'rgba(20,23,15,.55)');gr.addColorStop(.55,'rgba(20,23,15,.18)');gr.addColorStop(1,'rgba(20,23,15,0)');g.fillStyle=gr;g.fillRect(0,0,128,128);});materials.shadow=new THREE.MeshBasicMaterial({map:shade,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
 function mat(color,metal=0,rough=.85){const key=color+'|'+metal+'|'+rough;if(!materials[key])materials[key]=new THREE.MeshStandardMaterial({color,metalness:metal,roughness:rough});return materials[key];}
-const M={concrete:mat('#7e8074'),edge:mat('#a09f90'),dark:mat('#343a36'),rust:mat('#785e43',.16),bar:mat('#91998c',.35,.68),pipe:mat('#aaa68f',.08),ac:mat('#a5a894',.08),glass:mat('#25302f',.15,.48),glassLight:mat('#5e6b65',.18,.5),warm:new THREE.MeshStandardMaterial({color:'#c7ac79',emissive:'#d79a44',emissiveIntensity:.25,roughness:.65}),black:mat('#262c26'),curb:mat('#909183'),roof:mat('#717669'),wood:mat('#75604a'),green:mat('#485b3a')};
+const M={concrete:mat('#92918a'),edge:mat('#b2afa5'),dark:mat('#343a36'),rust:mat('#785e43',.16),bar:mat('#a1a7a5',.35,.68),pipe:mat('#b9b8b0',.08),ac:mat('#bec1ba',.08),glass:mat('#25302f',.15,.48),glassLight:mat('#5e6b65',.18,.5),warm:new THREE.MeshStandardMaterial({color:'#c7ac79',emissive:'#d79a44',emissiveIntensity:.25,roughness:.65}),black:mat('#262c26'),curb:mat('#93948e'),roof:mat('#858782'),wood:mat('#75604a'),green:mat('#485b3a')};
+
+// Blender meshes are embedded in a local script, keeping the offline entry usable.
+// Reuse each kit's buffers and materials across the selectable and perimeter roofs.
+const roofKits = (window.XiangliRoofAssets?.kits || []).map(kit => {
+ const template = new THREE.Group();
+ template.name = 'Blender_roof_' + kit.name;
+ for (const part of kit.parts) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(part.positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(part.normals, 3));
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, mat(part.color, part.metalness, part.roughness));
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  template.add(mesh);
+ }
+ return template;
+});
+
+function attachRoofKit(parent, id, x, y, z, width, depth) {
+ const roof = roofKits[id % roofKits.length].clone(true);
+ const quarterTurns = id % 4;
+ const swapsAxes = quarterTurns % 2 === 1;
+ roof.position.set(x, y, z);
+ // Three.js applies local scale before rotation, so quarter turns exchange X and Z.
+ roof.scale.set((swapsAxes ? depth : width) / 8, 1, (swapsAxes ? width : depth) / 8);
+ roof.rotation.y = quarterTurns * Math.PI / 2;
+ parent.add(roof);
+ return roof;
+}
 const residentialLights=[
  new THREE.MeshStandardMaterial({color:'#75817e',roughness:.52,emissive:'#ffc57d',emissiveIntensity:0}),
  new THREE.MeshStandardMaterial({color:'#697777',roughness:.52,emissive:'#d6e1f4',emissiveIntensity:0}),
@@ -174,9 +206,16 @@ function makeBuilding(config,register=true){const {id,x,z,w,d,floors,rotation=0,
    if(k===0&&id%3===0){box(u,2.0,depth+.2,shopW*.8,.07,.08,mat('#c4b78d'));}
   }
  }else{const du=-width*.15;box(du,1.3,depth+.04,1.1,2.4,.1,M.dark);box(du+.08,1.3,depth+.11,.9,2.2,.06,mat('#626b60'));if(side===0){for(const s of [-1,1])box(du+s*.65,1.38,depth+.12,.13,2.3,.012,mat('#803b29'));box(du,2.63,depth+.12,1.35,.18,.012,mat('#803b29'));box(du,.15,depth+.55,1.6,.22,.8,M.concrete);}}
- // parapets
- box(0,h+.72,depth-.05,width,.72,.14,wall);box(0,h+1.1,depth-.05,width+.08,.09,.23,M.edge);
+ // The Blender kit supplies its own parapets; retain these only for the fallback roof.
+ if (!roofKits.length) {
+  box(0,h+.72,depth-.05,width,.72,.14,wall);box(0,h+1.1,depth-.05,width+.08,.09,.23,M.edge);
+ }
  });
+ if (roofKits.length) {
+  attachRoofKit(root, id, 0, h + .4, 0, w, d);
+  // Keep the old roof's random draws so later street props retain their positions.
+  for (let draw = 0; draw < 16 + (id % 2 === 0 ? 1 : 0); draw++) rand();
+ } else {
  // Roof clutter, cylindrical stainless water tank and stairhouse.
  const roofHeight=1.7+(id%4)*.34,roofW=w*(.3+(id%3)*.07),roofD=d*.35;
  b.box(-w*.24,h+roofHeight*.5+.3,-d*.22,roofW,roofHeight,roofD,wall);b.box(-w*.24,h+roofHeight+.35,-d*.22,roofW+.2,.14,roofD+.3,M.edge);
@@ -191,6 +230,7 @@ function makeBuilding(config,register=true){const {id,x,z,w,d,floors,rotation=0,
  if(id%2===0){const rw=w*range(.4,.64),rd=d*.28,xx=w*.06,zz=d*.25,rm=mat(['#607477','#8c8e80','#736e5c'][id%3],.15,.8);b.box(xx,h+1.4,zz,rw,.07,rd,rm,0,0,.035);for(let j=0;j<Math.ceil(rw/.22);j++)b.box(xx-rw/2+j*.22,h+1.46,zz,.055,.04,rd,rm);for(const s of [-1,1])b.box(xx+s*(rw/2-.15),h+.85,zz,.06,1.2,.06,M.rust);}
  for(let j=0;j<4;j++){const xx=range(-w*.35,w*.35),zz=range(-d*.25,d*.3);b.box(xx,h+.42,zz,range(.6,2),.035,range(.6,1.5),mat(['#41473b','#7a7763','#87877a'][j%3]));}
  if(id%4===1){b.add(sphereGeo,mat('#aaa99b',.1),-w*.32,h+1.6,d*.18,1.15,.18,1.15,-.65,0,.2);b.box(-w*.32,h+.9,d*.18,.07,1,.07,M.rust);}
+ }
  dirt.finish();b.finish();
  const shadow=new THREE.Mesh(contactGeo,materials.shadow);shadow.rotation.x=-Math.PI/2;shadow.position.y=.052;shadow.scale.set(w+4,d+4,1);root.add(shadow);
  root.traverse(o=>{if(o.isMesh)o.userData.building=id;});
@@ -206,7 +246,7 @@ function groundSurface(width,depth,y,material){const s=new THREE.Shape();s.moveT
  for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/width+.5,uv.getY(i)/depth+.5);
  const mesh=new THREE.Mesh(geometry,material);mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;globals.add(mesh);
 }
-groundSurface(180,180,-.045,mat('#868b7b'));groundSurface(112,136,.048,materials.road);
+groundSurface(180,180,-.045,mat('#92968f'));groundSurface(112,136,.048,materials.road);
 {
  const detail=new Builder(globals);
  for(let z=-33;z<62;z+=5.7)detail.plane(laneX(z)+range(-.75,.75),.053,z,range(2.6,4.5),range(3.7,6),repairMat,-Math.PI/2,0,range(-.4,.4));
@@ -324,7 +364,9 @@ for(let j=0;j<42;j++){
  const z=sideRow?-45+((j-30)%6)*18:(j<10?-65:j<20?65:-85);
  const h=range(8,27),w=range(10,15),d=range(10,14);
  gb.box(x,h/2,z,w,h,d,materials['wall'+j%6]);gb.box(x,h+.2,z,w+.15,.24,d+.2,M.concrete);
- if(j%2===0)gb.cylinder(x+w*.22,h+.85,z,.95,1.35,.95,mat('#a1aaa5',.4));
+ if (roofKits.length) {
+  attachRoofKit(globals, j + 1, x, h + .35, z, w, d);
+ } else if(j%2===0)gb.cylinder(x+w*.22,h+.85,z,.95,1.35,.95,mat('#a1aaa5',.4));
  for(const [span,depth,a] of [[w,d/2,0],[d,w/2,Math.PI/2],[w,d/2,Math.PI],[d,w/2,-Math.PI/2]]){
   const c=Math.cos(a),s=Math.sin(a);
   const trim=mat(j%3===0?'#adb3a9':'#87928b',.22,.68);
@@ -440,10 +482,10 @@ function lighting(value){
  const evening=value==='evening',soft=value==='soft',rain=value==='rain';
  sun.intensity=evening?.16:rain?.4:soft?1.0:2.7;
  sun.position.set(-18,evening?14:39,30);
- sun.color.set(evening?'#c5d2e4':'#fff0d9');
+ sun.color.set(evening?'#c5d2e4':'#fff5e9');
  hemi.intensity=evening?1.0:rain?1.15:soft?1.49:1.28;
  hemi.color.set(evening?'#a5b7cd':'#d6e0ee');
- hemi.groundColor.set(evening?'#494240':'#787063');
+ hemi.groundColor.set(evening?'#494240':'#777772');
  scene.background.set(evening?'#727f91':rain?'#aeb9bf':soft?'#b9c4c7':'#ccd7db');
 
  M.warm.emissiveIntensity=evening?1.65:rain?.8:.2;

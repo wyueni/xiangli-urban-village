@@ -8,8 +8,23 @@ function element(id=''){if(elements.has(id))return elements.get(id);const e={id,
 const sandbox={structuredClone,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},console:{...console,warn(){}},window:{addEventListener(){}},document:{createElement:()=>element(Math.random()+''),getElementById:element,querySelectorAll:()=>[],addEventListener(){},body:{classList:{toggle(){},add(){},remove(){}}},activeElement:{tagName:'CANVAS'},hidden:false},innerWidth:1440,innerHeight:900,devicePixelRatio:1,performance,requestAnimationFrame(fn){sandbox.lastFrame=fn;},setTimeout,clearTimeout,Blob,TextEncoder,URL};sandbox.window.window=sandbox.window;
 vm.createContext(sandbox);vm.runInContext(fs.readFileSync('dist/vendor/three.min.js','utf8'),sandbox);
 sandbox.THREE.WebGLRenderer=class {constructor(){this.shadowMap={};this.capabilities={getMaxAnisotropy:()=>4};}setPixelRatio(){}setSize(){}setScissorTest(){}setViewport(){}setScissor(){}render(){this.renders=(this.renders||0)+1;}};
-vm.runInContext(fs.readFileSync('dist/export.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/knowledge.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/budget.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/planning.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/scene.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('dist/export.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/knowledge.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/budget.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/planning.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/village-roof-assets.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('dist/scene.js','utf8'),sandbox);
 (async()=>{const api=sandbox.window.Xiangli;assert.equal(api.buildings.length,20);let instances=0;for(const b of api.buildings){assert.ok(b.h>7);b.root.traverse(o=>{if(o.isMesh){assert.ok(o.geometry.attributes.position.count>0);for(const v of o.geometry.attributes.position.array)assert.ok(Number.isFinite(v));if(o.isInstancedMesh){instances+=o.count;for(const v of o.instanceMatrix.array)assert.ok(Number.isFinite(v));}}});}
+// The shipped Blender meshes must load on every editable roof and stay within its footprint.
+assert.equal(sandbox.window.XiangliRoofAssets.kits.length,4);
+for(const b of api.buildings){
+ const roof=b.root.children.find(o=>o.name.startsWith('Blender_roof_'));
+ assert.ok(roof,'Missing Blender roof on building '+b.id);
+ roof.updateMatrix();
+ const bounds=new sandbox.THREE.Box3();
+ for(const mesh of roof.children){
+  assert.equal(mesh.geometry.attributes.position.count,mesh.geometry.attributes.normal.count);
+  bounds.union(mesh.geometry.boundingBox.clone().applyMatrix4(roof.matrix));
+ }
+ assert.ok(bounds.min.x>=-b.config.w/2-.01&&bounds.max.x<=b.config.w/2+.01,'Roof exceeds building width');
+ assert.ok(bounds.min.z>=-b.config.d/2-.01&&bounds.max.z<=b.config.d/2+.01,'Roof exceeds building depth');
+ assert.ok(bounds.max.y<b.h+4,'Roof equipment height is excessive');
+}
 // Separating-axis test for independently rotated building footprints.
 function overlaps(a,b){
  const corners=c=>{const r=c.rotation,co=Math.cos(r),si=Math.sin(r);return [[-1,-1],[-1,1],[1,-1],[1,1]].map(([sx,sz])=>[c.x+sx*c.w/2*co+sz*c.d/2*si,c.z-sx*c.w/2*si+sz*c.d/2*co]);};
