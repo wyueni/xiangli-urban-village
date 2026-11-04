@@ -113,3 +113,47 @@ body.mission-intro #ops #guideNext,body.mission-intro #ops #guideReplay,body.mis
 #month-result-body .rank-best{font-size:12px;color:#857348;margin-bottom:0}
 .rank-next{margin:14px 0;padding:13px 16px;background:#f3efdf;border-radius:8px;color:#6b6146}
 .rank-next strong{font-size:13px}.rank-next p{font-size:12px;margin:6px 0 0}
+
+/* Share one layout so expanded task details cannot cover an observation. */
+.observation-panels { display: contents; }
+
+body.observing:not(.mission-intro) .observation-panels {
+  position: absolute;
+  z-index: 3;
+  top: 145px;
+  left: 18px;
+  bottom: 100px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+}
+
+body.observing:not(.mission-intro) .observation-panels > :is(#ops, #study-card) {
+  position: static;
+  box-sizing: border-box;
+  width: 265px;
+  max-height: 100%;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+@media (max-width: 980px) {
+  body.observing:not(.mission-intro) .observation-panels {
+    top: 145px;
+    bottom: 126px;
+    left: 8px;
+    width: min(265px, 52vw);
+    flex-direction: column;
+    overflow-y: auto;
+    pointer-events: auto;
+  }
+
+  body.observing:not(.mission-intro) .observation-panels > :is(#ops, #study-card) {
+    flex: none;
+    width: 100%;
+    max-height: none;
+  }
+
+  .observation-panels > #study-card { order: -1; }
+}
