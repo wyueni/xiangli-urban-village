@@ -7,8 +7,8 @@ try {renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'hi
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.88;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(43,innerWidth/innerHeight,.08,450);
-scene.background=new THREE.Color('#b9c4c7');scene.fog=new THREE.Fog('#b9c4c7',70,220);
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(43,innerWidth/innerHeight,.08,1200);
+scene.background=new THREE.Color('#b9c4c7');
 const sun=new THREE.DirectionalLight('#fff1db',2.35);sun.position.set(-30,48,-36);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-65,right:65,top:65,bottom:-65,near:1,far:170});sun.shadow.normalBias=.025;sun.shadow.bias=-.00012;sun.shadow.radius=3;scene.add(sun);
 const hemi=new THREE.HemisphereLight('#c8d4df','#534f44',1.1);scene.add(hemi);
 const village=new THREE.Group();scene.add(village);
@@ -48,7 +48,8 @@ function wallTexture(name,base,tile){const fresh=name==='clean';return tex(name,
  }
  noise(g,w,h,65000,fresh?.08:.24);
  });}
-const wallColors=['#b1a79a','#c3c0ae','#a9b0ab','#a18675','#c8beaa','#a2a49f'];
+// Faded ceramic and painted plaster colours seen in the Guangzhou reference.
+const wallColors=['#c7c6bf','#ddd8ca','#c4cecb','#c89c91','#d2b5a6','#b8bcc0'];
 wallColors.forEach((c,i)=>{const t=wallTexture('wall'+i,c,i!==0&&i!==5);blendBakedTexture(t,blenderAssets?.maps.wall,.48);materials['wall'+i]=new THREE.MeshStandardMaterial({map:t,bumpMap:t,bumpScale:.025,roughness:.97});});
 const clean=wallTexture('clean','#e1ddce',true);materials.clean=new THREE.MeshStandardMaterial({map:clean,bumpMap:clean,bumpScale:.012,roughness:.85});
 const asphalt=tex('asphalt',768,768,(g,w,h)=>{g.fillStyle='#7b7a73';g.fillRect(0,0,w,h);noise(g,w,h,65000,.55);for(let i=0;i<45;i++){const x=rand()*w,y=rand()*h,r=range(12,90),gr=g.createRadialGradient(x,y,1,x,y,r);gr.addColorStop(0,i%3?'#2c30294a':'#a9a59855');gr.addColorStop(1,'#33392f00');g.fillStyle=gr;g.fillRect(x-r,y-r,r*2,r*2);}for(let i=0;i<24;i++){g.beginPath();g.strokeStyle='#282d26aa';g.lineWidth=range(.6,2);let x=rand()*w,y=rand()*h;g.moveTo(x,y);for(let k=0;k<10;k++){x+=range(-22,22);y+=range(6,23);g.lineTo(x,y);}g.stroke();}});asphalt.wrapS=asphalt.wrapT=THREE.RepeatWrapping;asphalt.repeat.set(12,14);
@@ -68,7 +69,38 @@ const paving=tex('paving',512,512,(g,w,h)=>{g.fillStyle='#a5a49a';g.fillRect(0,0
 const fan=tex('fan',128,128,(g)=>{g.clearRect(0,0,128,128);g.fillStyle='#515650';g.beginPath();g.arc(64,64,53,0,Math.PI*2);g.fill();g.strokeStyle='#9a9c91';g.lineWidth=2;for(let r=10;r<55;r+=6){g.beginPath();g.arc(64,64,r,0,Math.PI*2);g.stroke();}for(let i=0;i<20;i++){const a=i*Math.PI/10;g.beginPath();g.moveTo(64,64);g.lineTo(64+Math.cos(a)*53,64+Math.sin(a)*53);g.stroke();}g.fillStyle='#acada0';g.beginPath();g.arc(64,64,9,0,Math.PI*2);g.fill();});materials.fan=new THREE.MeshStandardMaterial({map:fan,transparent:true,roughness:.85});
 const shade=tex('shade',128,128,g=>{const gr=g.createRadialGradient(64,64,4,64,64,64);gr.addColorStop(0,'rgba(20,23,15,.55)');gr.addColorStop(.55,'rgba(20,23,15,.18)');gr.addColorStop(1,'rgba(20,23,15,0)');g.fillStyle=gr;g.fillRect(0,0,128,128);});materials.shadow=new THREE.MeshBasicMaterial({map:shade,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
 function mat(color,metal=0,rough=.85){const key=color+'|'+metal+'|'+rough;if(!materials[key])materials[key]=new THREE.MeshStandardMaterial({color,metalness:metal,roughness:rough});return materials[key];}
-const M={concrete:mat('#7e8074'),edge:mat('#a09f90'),dark:mat('#343a36'),rust:mat('#785e43',.16),bar:mat('#91998c',.35,.68),pipe:mat('#aaa68f',.08),ac:mat('#a5a894',.08),glass:mat('#25302f',.15,.48),glassLight:mat('#5e6b65',.18,.5),warm:new THREE.MeshStandardMaterial({color:'#c7ac79',emissive:'#d79a44',emissiveIntensity:.25,roughness:.65}),black:mat('#262c26'),curb:mat('#909183'),roof:mat('#717669'),wood:mat('#75604a'),green:mat('#485b3a')};
+const M={concrete:mat('#92918a'),edge:mat('#b2afa5'),dark:mat('#343a36'),rust:mat('#785e43',.16),bar:mat('#a1a7a5',.35,.68),pipe:mat('#b9b8b0',.08),ac:mat('#bec1ba',.08),glass:mat('#25302f',.15,.48),glassLight:mat('#5e6b65',.18,.5),warm:new THREE.MeshStandardMaterial({color:'#c7ac79',emissive:'#d79a44',emissiveIntensity:.25,roughness:.65}),black:mat('#262c26'),curb:mat('#93948e'),roof:mat('#858782'),wood:mat('#75604a'),green:mat('#485b3a')};
+
+// Blender meshes are embedded in a local script, keeping the offline entry usable.
+// Reuse each kit's buffers and materials across the selectable and perimeter roofs.
+const roofKits = (window.XiangliRoofAssets?.kits || []).map(kit => {
+ const template = new THREE.Group();
+ template.name = 'Blender_roof_' + kit.name;
+ for (const part of kit.parts) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(part.positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(part.normals, 3));
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, mat(part.color, part.metalness, part.roughness));
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  template.add(mesh);
+ }
+ return template;
+});
+
+function attachRoofKit(parent, id, x, y, z, width, depth) {
+ const roof = roofKits[id % roofKits.length].clone(true);
+ const quarterTurns = id % 4;
+ const swapsAxes = quarterTurns % 2 === 1;
+ roof.position.set(x, y, z);
+ // Three.js applies local scale before rotation, so quarter turns exchange X and Z.
+ roof.scale.set((swapsAxes ? depth : width) / 8, 1, (swapsAxes ? width : depth) / 8);
+ roof.rotation.y = quarterTurns * Math.PI / 2;
+ parent.add(roof);
+ return roof;
+}
 const residentialLights=[
  new THREE.MeshStandardMaterial({color:'#75817e',roughness:.52,emissive:'#ffc57d',emissiveIntensity:0}),
  new THREE.MeshStandardMaterial({color:'#697777',roughness:.52,emissive:'#d6e1f4',emissiveIntensity:0}),
@@ -174,9 +206,16 @@ function makeBuilding(config,register=true){const {id,x,z,w,d,floors,rotation=0,
    if(k===0&&id%3===0){box(u,2.0,depth+.2,shopW*.8,.07,.08,mat('#c4b78d'));}
   }
  }else{const du=-width*.15;box(du,1.3,depth+.04,1.1,2.4,.1,M.dark);box(du+.08,1.3,depth+.11,.9,2.2,.06,mat('#626b60'));if(side===0){for(const s of [-1,1])box(du+s*.65,1.38,depth+.12,.13,2.3,.012,mat('#803b29'));box(du,2.63,depth+.12,1.35,.18,.012,mat('#803b29'));box(du,.15,depth+.55,1.6,.22,.8,M.concrete);}}
- // parapets
- box(0,h+.72,depth-.05,width,.72,.14,wall);box(0,h+1.1,depth-.05,width+.08,.09,.23,M.edge);
+ // The Blender kit supplies its own parapets; retain these only for the fallback roof.
+ if (!roofKits.length) {
+  box(0,h+.72,depth-.05,width,.72,.14,wall);box(0,h+1.1,depth-.05,width+.08,.09,.23,M.edge);
+ }
  });
+ if (roofKits.length) {
+  attachRoofKit(root, id, 0, h + .4, 0, w, d);
+  // Keep the old roof's random draws so later street props retain their positions.
+  for (let draw = 0; draw < 16 + (id % 2 === 0 ? 1 : 0); draw++) rand();
+ } else {
  // Roof clutter, cylindrical stainless water tank and stairhouse.
  const roofHeight=1.7+(id%4)*.34,roofW=w*(.3+(id%3)*.07),roofD=d*.35;
  b.box(-w*.24,h+roofHeight*.5+.3,-d*.22,roofW,roofHeight,roofD,wall);b.box(-w*.24,h+roofHeight+.35,-d*.22,roofW+.2,.14,roofD+.3,M.edge);
@@ -191,6 +230,7 @@ function makeBuilding(config,register=true){const {id,x,z,w,d,floors,rotation=0,
  if(id%2===0){const rw=w*range(.4,.64),rd=d*.28,xx=w*.06,zz=d*.25,rm=mat(['#607477','#8c8e80','#736e5c'][id%3],.15,.8);b.box(xx,h+1.4,zz,rw,.07,rd,rm,0,0,.035);for(let j=0;j<Math.ceil(rw/.22);j++)b.box(xx-rw/2+j*.22,h+1.46,zz,.055,.04,rd,rm);for(const s of [-1,1])b.box(xx+s*(rw/2-.15),h+.85,zz,.06,1.2,.06,M.rust);}
  for(let j=0;j<4;j++){const xx=range(-w*.35,w*.35),zz=range(-d*.25,d*.3);b.box(xx,h+.42,zz,range(.6,2),.035,range(.6,1.5),mat(['#41473b','#7a7763','#87877a'][j%3]));}
  if(id%4===1){b.add(sphereGeo,mat('#aaa99b',.1),-w*.32,h+1.6,d*.18,1.15,.18,1.15,-.65,0,.2);b.box(-w*.32,h+.9,d*.18,.07,1,.07,M.rust);}
+ }
  dirt.finish();b.finish();
  const shadow=new THREE.Mesh(contactGeo,materials.shadow);shadow.rotation.x=-Math.PI/2;shadow.position.y=.052;shadow.scale.set(w+4,d+4,1);root.add(shadow);
  root.traverse(o=>{if(o.isMesh)o.userData.building=id;});
@@ -206,7 +246,7 @@ function groundSurface(width,depth,y,material){const s=new THREE.Shape();s.moveT
  for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/width+.5,uv.getY(i)/depth+.5);
  const mesh=new THREE.Mesh(geometry,material);mesh.rotation.x=-Math.PI/2;mesh.position.y=y;mesh.receiveShadow=true;globals.add(mesh);
 }
-groundSurface(180,180,-.045,mat('#868b7b'));groundSurface(112,136,.048,materials.road);
+groundSurface(180,180,-.045,mat('#92968f'));groundSurface(112,136,.048,materials.road);
 {
  const detail=new Builder(globals);
  for(let z=-33;z<62;z+=5.7)detail.plane(laneX(z)+range(-.75,.75),.053,z,range(2.6,4.5),range(3.7,6),repairMat,-Math.PI/2,0,range(-.4,.4));
@@ -315,12 +355,18 @@ for(const building of buildings){const c=building.config;if(Math.abs(c.x)>20||c.
 // Fictional entrance marker: aged concrete, not a reconstruction of a named place.
 gb.box(-3.5,2.6,63,.48,5.2,.5,M.concrete);gb.box(3.4,2.6,63,.48,5.2,.5,M.concrete);gb.box(0,5.45,63,7.5,1.1,.4,mat('#aaa995'));
 const entranceTex=tex('entrance',1024,180,(g,w,h)=>{g.fillStyle='#aaa995';g.fillRect(0,0,w,h);noise(g,w,h,18000,.3);g.font='bold 115px serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#5b5742';g.fillText('同 兴 里',w/2,h*.53);});const entranceMat=new THREE.MeshStandardMaterial({map:entranceTex,roughness:1});gb.plane(0,5.45,63.21,7.3,1.05,entranceMat);
-// Uneven distant roofline with a modern skyline beyond the village.
 seed=19031;
-for(let j=0;j<30;j++){
- const x=-77+(j%10)*17+range(-2,2),z=j<10?-65:j<20?65:-85,h=range(8,27),w=range(10,15),d=range(10,14);
+let seedAfterOriginalRows;
+for(let j=0;j<42;j++){
+ if(j===30)seedAfterOriginalRows=seed;
+ const sideRow=j>=30;
+ const x=sideRow?(j<36?-76:76)+range(-1.5,1.5):-77+(j%10)*17+range(-2,2);
+ const z=sideRow?-45+((j-30)%6)*18:(j<10?-65:j<20?65:-85);
+ const h=range(8,27),w=range(10,15),d=range(10,14);
  gb.box(x,h/2,z,w,h,d,materials['wall'+j%6]);gb.box(x,h+.2,z,w+.15,.24,d+.2,M.concrete);
- if(j%2===0)gb.cylinder(x+w*.22,h+.85,z,.95,1.35,.95,mat('#a1aaa5',.4));
+ if (roofKits.length) {
+  attachRoofKit(globals, j + 1, x, h + .35, z, w, d);
+ } else if(j%2===0)gb.cylinder(x+w*.22,h+.85,z,.95,1.35,.95,mat('#a1aaa5',.4));
  for(const [span,depth,a] of [[w,d/2,0],[d,w/2,Math.PI/2],[w,d/2,Math.PI],[d,w/2,-Math.PI/2]]){
   const c=Math.cos(a),s=Math.sin(a);
   const trim=mat(j%3===0?'#adb3a9':'#87928b',.22,.68);
@@ -344,7 +390,7 @@ for(let j=0;j<30;j++){
   }
  }
 }
-for(let j=0;j<13;j++){const x=-115+j*19,z=-128+range(-8,8),h=range(38,73);gb.box(x,h/2,z,range(8,15),h,range(9,16),mat('#899b9e'));for(let yy=4;yy<h;yy+=3)gb.box(x,yy,z+7.1,8,.1,.03,mat('#a6b3b2'));}
+seed=seedAfterOriginalRows;
 // V03 district landmarks, public-space references and fictional inspection cases.
 const sceneNodes=new Map(),featurePins=new THREE.Group(),steamSprites=[];scene.add(featurePins);featurePins.visible=false;
 let activeNode=null,inspectionOn=false;
@@ -418,6 +464,7 @@ for(const i of [5,10,14]){const c=buildings[i].config,side=c.x<0?-1:1,lamp=new T
 const outline=new THREE.LineSegments(new THREE.EdgesGeometry(boxGeo),new THREE.LineBasicMaterial({color:'#e4b561',transparent:true,opacity:.85,depthTest:true}));outline.visible=false;scene.add(outline);
 let planning=null;
 let selected=9,mode='overview',light='day',comparison=false,observation='life';
+const maxOrbitDistance=540;
 let target=new THREE.Vector3(0,8,3),radius=106,azimuth=.74,polar=.94;
 const streetPosition=new THREE.Vector3(.1,1.75,47);let yaw=0,pitch=.12;let cameraTween=null;
 function cameraUpdate(){if(mode==='lane'){camera.position.copy(streetPosition);camera.lookAt(streetPosition.x+Math.sin(yaw)*Math.cos(pitch),streetPosition.y+Math.sin(pitch),streetPosition.z-Math.cos(yaw)*Math.cos(pitch));}else{camera.position.set(target.x+radius*Math.sin(polar)*Math.sin(azimuth),target.y+radius*Math.cos(polar),target.z+radius*Math.sin(polar)*Math.cos(azimuth));camera.lookAt(target);}}
@@ -435,12 +482,12 @@ function lighting(value){
  const evening=value==='evening',soft=value==='soft',rain=value==='rain';
  sun.intensity=evening?.16:rain?.4:soft?1.0:2.7;
  sun.position.set(-18,evening?14:39,30);
- sun.color.set(evening?'#c5d2e4':'#fff0d9');
+ sun.color.set(evening?'#c5d2e4':'#fff5e9');
  hemi.intensity=evening?1.0:rain?1.15:soft?1.49:1.28;
  hemi.color.set(evening?'#a5b7cd':'#d6e0ee');
- hemi.groundColor.set(evening?'#494240':'#787063');
+ hemi.groundColor.set(evening?'#494240':'#777772');
  scene.background.set(evening?'#727f91':rain?'#aeb9bf':soft?'#b9c4c7':'#ccd7db');
- scene.fog.color.copy(scene.background);scene.fog.near=rain?48:70;
+
  M.warm.emissiveIntensity=evening?1.65:rain?.8:.2;
  residentialLights.forEach((m,i)=>{m.emissiveIntensity=evening?[1.35,.82,1.04][i]:0;});
  for(const m of signMats)m.emissiveIntensity=evening?.42:rain?.14:.025;
@@ -541,23 +588,23 @@ function setupDistrictUI(){sampleLight();buildGreenLayer();renderMiniMap();$('pl
 const ray=new THREE.Raycaster();let pointers=new Map(),down=null,dragged=false,pinch=null;const keys=new Set();
 canvas.addEventListener('pointerdown',e=>{canvas.focus({preventScroll:true});canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});down={x:e.clientX,y:e.clientY};dragged=false;if(pointers.size===2){const a=[...pointers.values()];pinch={dist:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2};}});
 canvas.addEventListener('pointermove',e=>{if(planning?.tool&&!pointers.size){const p=planningGround(e);if(p)planning.preview(p);return;}const prev=pointers.get(e.pointerId);if(!prev)return;const dx=e.clientX-prev.x,dy=e.clientY-prev.y;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(down&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>5)dragged=true;cameraTween=null;
- if(pointers.size===2&&mode!=='lane'){const a=[...pointers.values()],dist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),x=(a[0].x+a[1].x)/2,y=(a[0].y+a[1].y)/2;if(pinch){radius=THREE.MathUtils.clamp(radius*pinch.dist/Math.max(1,dist),22,180);target.x-=(x-pinch.x)*radius*.001;target.z-=(y-pinch.y)*radius*.001;}pinch={dist,x,y};}
+ if(pointers.size===2&&mode!=='lane'){const a=[...pointers.values()],dist=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),x=(a[0].x+a[1].x)/2,y=(a[0].y+a[1].y)/2;if(pinch){radius=THREE.MathUtils.clamp(radius*pinch.dist/Math.max(1,dist),22,maxOrbitDistance);target.x-=(x-pinch.x)*radius*.001;target.z-=(y-pinch.y)*radius*.001;}pinch={dist,x,y};}
  else if(mode==='lane'){yaw+=dx*.004;pitch=THREE.MathUtils.clamp(pitch-dy*.003,-.7,1.2);}else if(e.buttons===2||e.shiftKey){target.x-=dx*radius*.001;target.z-=dy*radius*.001;}else{azimuth-=dx*.004;polar=THREE.MathUtils.clamp(polar+dy*.003,.035,1.43);}cameraUpdate();});
 // A named handler keeps touch cancellation and ordinary release identical.
 function release(e){const click=!dragged&&pointers.size===1;pointers.delete(e.pointerId);pinch=null;if(click&&planning?.tool){const p=planningGround(e);if(p){if(planning.tool.type==='new')planning.pickSite(p.x,p.z);else{planning.showMap();planning.chooseSite(p.x,p.z);}}down=null;return;}if(click){const rect=canvas.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((comparison?((e.clientX-rect.left)%(rect.width/2))/(rect.width/2):(e.clientX-rect.left)/rect.width)*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);const hit=ray.intersectObjects([...pickTargets,...(planning?planning.pickMeshes():[])].filter(o=>{for(let p=o;p;p=p.parent)if(!p.visible)return false;return true;}),false)[0];if(hit){if(hit.object.userData.planItem)planning.selectItem(hit.object.userData.planItem);else if(hit.object.userData.sceneNode)inspectNode(hit.object.userData.sceneNode);else if(hit.object.userData.building!==undefined)select(hit.object.userData.building);}}down=null;}
-canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);pinch=null;down=null;});canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('wheel',e=>{e.preventDefault();if(mode!=='lane'){radius=THREE.MathUtils.clamp(radius*Math.exp(e.deltaY*.001),22,180);cameraTween=null;cameraUpdate();}},{passive:false});
+canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);pinch=null;down=null;});canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('wheel',e=>{e.preventDefault();if(mode!=='lane'){radius=THREE.MathUtils.clamp(radius*Math.exp(e.deltaY*.001),22,maxOrbitDistance);cameraTween=null;cameraUpdate();}},{passive:false});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(planning?.cancel())return;if($('help').open)$('help').close();else setView('overview');}if(mode==='lane'&&['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName)&&!$('help').open){keys.add(e.key);e.preventDefault();}});window.addEventListener('keyup',e=>keys.delete(e.key));window.addEventListener('blur',()=>keys.clear());document.addEventListener('visibilitychange',()=>keys.clear());
 document.querySelectorAll('[data-walk]').forEach(el=>{const key={forward:'w',back:'s',left:'a',right:'d'}[el.dataset.walk];el.addEventListener('pointerdown',e=>{e.preventDefault();el.setPointerCapture(e.pointerId);keys.add(key);});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>el.addEventListener(ev,()=>keys.delete(key)));});
-document.querySelectorAll('[data-view]').forEach(el=>el.onclick=()=>setView(el.dataset.view));$('focus').onclick=focus;$('renovate').onclick=renovate;$('light').onchange=e=>lighting(e.target.value);$('guide').onclick=()=>$('help').showModal();$('close-help').onclick=()=>$('help').close();$('reset').onclick=()=>{buildings.forEach(b=>{b.root.userData.renovated=false;b.body.material=b.wall;b.weathering.visible=true;for(const c of b.root.children)if(c.isInstancedMesh&&c.material===materials.clean)c.material=b.wall;});for(const node of sceneNodes.values())if(node.type==='hazard')setResolved(node,false);if(greeningOn)toggleGreening();setCompare(false);setObservation('life');setView('overview');select(9);lighting('day');$('light').value='day';toast('已恢复初始场景。');};
+document.querySelectorAll('[data-view]').forEach(el=>el.onclick=()=>{if(el.dataset.view==="top" && planning){planning.openBuildingMap();return}setView(el.dataset.view)});$('focus').onclick=focus;$('renovate').onclick=renovate;$('light').onchange=e=>lighting(e.target.value);$('guide').onclick=()=>$('help').showModal();$('close-help').onclick=()=>$('help').close();$('reset').onclick=()=>{buildings.forEach(b=>{b.root.userData.renovated=false;b.body.material=b.wall;b.weathering.visible=true;for(const c of b.root.children)if(c.isInstancedMesh&&c.material===materials.clean)c.material=b.wall;});for(const node of sceneNodes.values())if(node.type==='hazard')setResolved(node,false);if(greeningOn)toggleGreening();setCompare(false);setObservation('life');setView('overview');select(9);lighting('day');$('light').value='day';toast('已恢复初始场景。');};
 $('export').onclick=async()=>{const button=$('export');button.disabled=true;toast('正在打包建筑几何体与贴图…');try{await new Promise(r=>setTimeout(r,30));const b=buildings[selected],blob=await window.exportBuildingGLB(b.root);const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=b.root.name+'.glb';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);toast('建筑 GLB 已导出，可继续导入三维项目。');}catch(e){toast('导出失败：'+e.message);}finally{button.disabled=false;}};
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 setupDistrictUI();setView('overview');select(9);lighting('day');
-let last=performance.now(),frames=0,statTime=last;
+let last=performance.now();
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000,.05);last=now;if(document.hidden)return;
  if(mode==='lane'&&keys.size){let f=(keys.has('w')||keys.has('ArrowUp')?1:0)-(keys.has('s')||keys.has('ArrowDown')?1:0),r=(keys.has('d')||keys.has('ArrowRight')?1:0)-(keys.has('a')||keys.has('ArrowLeft')?1:0);const n=Math.hypot(f,r)||1;streetPosition.x+= (Math.sin(yaw)*f+Math.cos(yaw)*r)/n*dt*4;streetPosition.z+=(-Math.cos(yaw)*f+Math.sin(yaw)*r)/n*dt*4;streetPosition.x=THREE.MathUtils.clamp(streetPosition.x,-55,58);streetPosition.z=THREE.MathUtils.clamp(streetPosition.z,-65,69);}
  if(cameraTween){const t=Math.min(1,(now-cameraTween.start)/850),e=t*t*(3-2*t);target.lerpVectors(cameraTween.from,cameraTween.to,e);radius=THREE.MathUtils.lerp(cameraTween.fromR,cameraTween.toR,e);if(t===1)cameraTween=null;}
- cameraUpdate();renderScene();for(const item of steamSprites){const t=(now*.00017+item.phase)%1;item.sp.position.y=1.8+t*1.5;item.sp.position.x=sceneNodes.get('breakfast').x-.1+Math.sin(now*.0005+item.phase)*.12;item.sp.position.z=sceneNodes.get('breakfast').z+.12;item.sp.material.opacity=sceneNodes.get('breakfast').root.visible?(1-t)*.2:0;item.sp.scale.set(.3+t*.6,.5+t*.8,1);}frames++;
- if(now-statTime>1500){$('scene-stats').textContent=`${buildings.filter(b=>b.root.visible).length} 栋民居 · 祠堂 / 涌边 / 风险观察 · ${Math.round(frames*1000/(now-statTime))} FPS`;frames=0;statTime=now;}
+ cameraUpdate();renderScene();for(const item of steamSprites){const t=(now*.00017+item.phase)%1;item.sp.position.y=1.8+t*1.5;item.sp.position.x=sceneNodes.get('breakfast').x-.1+Math.sin(now*.0005+item.phase)*.12;item.sp.position.z=sceneNodes.get('breakfast').z+.12;item.sp.material.opacity=sceneNodes.get('breakfast').root.visible?(1-t)*.2:0;item.sp.scale.set(.3+t*.6,.5+t*.8,1);}
+
 }
 renderer.render(scene,camera);$('loading').remove();requestAnimationFrame(frame);
 function planningGround(e){const rect=canvas.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),new THREE.Vector3());}
@@ -565,7 +612,7 @@ function planningGround(e){const rect=canvas.getBoundingClientRect();ray.setFrom
 window.Xiangli={scene,camera,renderer,buildings,sceneNodes,roadNetwork,lightProfiles,baseBuildings,activeBuilding,roomCount,livingCapacity,replacementConfig,get baselineSun(){return baselineSun;},inspectNode,resolveNode,setObservation,setCompare,toggleGreening,greenCoverage,select,setView,renovate,lighting,get selected(){return selected;}};
 if(window.installPlanning){
  planning=window.installPlanning({api:window.Xiangli,THREE,Builder,M,mat,boxGeo,sphereGeo,scene,globals,buildings,sceneNodes,board,materials,greenSpaces,trialCanopies,toast,focus,setView,comparison:()=>comparison,activeNode:()=>activeNode,observation:()=>observation,refreshGreen(){buildGreenLayer();if(observation==='green')updateStudy();},
- applyOriginalState(state){peoplePerRoom=state.occupancy;applyBuildingWorks(state.buildingWorks,state.objectEdits);for(const b of baseBuildings){const on=state.renovated.includes(b.config.id);b.root.userData.renovated=on;b.body.material=on?materials.clean:b.wall;b.weathering.visible=!on;for(const child of b.root.children)if(child.isInstancedMesh&&(child.material===b.wall||child.material===materials.clean))child.material=on?materials.clean:b.wall;}for(const n of sceneNodes.values())if(n.type==='hazard')setResolved(n,state.resolved.includes(n.id));if(greeningOn!==state.greening)toggleGreening();if(activeNode)inspectNode(activeNode);else select(selected);},
+ applyOriginalState(state,quiet=false){peoplePerRoom=state.occupancy;applyBuildingWorks(state.buildingWorks,state.objectEdits);for(const b of baseBuildings){const on=state.renovated.includes(b.config.id);b.root.userData.renovated=on;b.body.material=on?materials.clean:b.wall;b.weathering.visible=!on;for(const child of b.root.children)if(child.isInstancedMesh&&(child.material===b.wall||child.material===materials.clean))child.material=on?materials.clean:b.wall;}for(const n of sceneNodes.values())if(n.type==='hazard')setResolved(n,state.resolved.includes(n.id));if(quiet){greeningOn=state.greening;trialGreening.visible=greeningOn;}else{if(greeningOn!==state.greening)toggleGreening();if(activeNode)inspectNode(activeNode);else select(selected);}},
  positionObject(n,x,z,visible){n.x=x;n.z=z;n.root.position.set(x,0,z);n.root.visible=visible;n.pin.position.x=x;n.pin.position.z=z;n.pin.visible=visible&&n.type==='hazard';},
  returnToStart(){setCompare(false);setObservation('life');setView('overview');select(9);lighting('day');$('light').value='day';}
  });window.Xiangli.planning=planning;window.Xiangli.renovate=planning.buyRenovation;window.Xiangli.resolveNode=planning.buyHazard;window.Xiangli.toggleGreening=planning.buyGreening;

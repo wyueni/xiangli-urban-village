@@ -1,0 +1,159 @@
+#village-dashboard{position:absolute;z-index:4;left:18px;right:18px;bottom:12px;padding:10px 12px;background:#f9f8efed;border:1px solid #ffffffb0;border-radius:14px;color:#294638;box-shadow:0 8px 30px #203a3020;font-size:11px;max-height:42vh;overflow:auto}
+.dashboard-heading{display:flex;align-items:center;gap:16px;margin-bottom:7px;flex-wrap:wrap}
+.dashboard-heading h2{font:600 14px system-ui;margin:0}.dashboard-heading small{color:#687769;font-size:10px;margin-left:auto}
+#dashboard-checks{display:flex;gap:12px;color:#86714f;font-size:11px}.met{color:#2b7052!important}
+#dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.metric-card{padding:8px 11px;background:#ffffffb8;border:1px solid #dde4d7;border-radius:8px;min-width:0}
+.metric-card h3{display:flex;align-items:center;justify-content:space-between;font-size:12px;margin:0 0 5px;color:#2b5743}
+.metric-card h3 button{border:0;background:none;color:#5a7868;font-size:10px;padding:0}
+.metric-row{display:flex;justify-content:space-between;gap:6px;line-height:1.8}.metric-row span{color:#687668}.metric-row b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}.metric-row em{font-size:10px;font-weight:400;font-style:normal;color:#687668}
+.metric-bar{display:grid;grid-template-columns:1fr auto;gap:2px 8px;margin:3px 0}.metric-bar span{color:#687668}.metric-bar meter{grid-column:1/-1;width:100%;height:5px;appearance:none;background:#e4e9dd;border:0;border-radius:4px}.metric-bar meter::-webkit-meter-bar{background:#e4e9dd;border:0;border-radius:4px}.metric-bar meter::-webkit-meter-optimum-value{background:#66977b}.metric-bar meter::-moz-meter-bar{background:#66977b}
+.risk-flags{display:grid;grid-template-columns:1fr 1fr;gap:4px;color:#947344;margin:6px 0}.metric-warning{color:#a64b39!important}.metric-positive{color:#2b7052!important}
+body{--dashboard-space:335px}.view-tools{bottom:calc(var(--dashboard-space) + 12px)}.mini-map{bottom:calc(var(--dashboard-space) + 12px);width:150px}.mini-map svg{max-height:135px}.bottom{bottom:calc(var(--dashboard-space) + 12px)}
+#ops{max-height:calc(100dvh - var(--dashboard-space) - 165px)}#panel{max-height:calc(100dvh - var(--dashboard-space) - 145px)}#placement-bar{bottom:calc(var(--dashboard-space) + 60px)}#walk-controls{bottom:calc(var(--dashboard-space) + 65px)}
+@media(max-width:1000px){#village-dashboard{max-height:35vh;left:8px;right:8px}body{--dashboard-space:calc(35vh + 22px)}#dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mini-map{display:none}.dashboard-heading small{display:none}#dashboard-checks{flex-wrap:wrap;gap:5px 10px}}
+@media(max-width:750px){#ops{top:130px;bottom:auto;max-height:calc(65dvh - 180px)}#panel{top:130px;bottom:auto;max-height:calc(65dvh - 180px)}.metric-card{padding:7px}.metric-row{font-size:10px}.view-tools{bottom:calc(var(--dashboard-space) + 8px)}}
+
+/* Keep the building action area focused on the three construction choices. */
+#panel #building-capacity, #panel .note-editor, #panel #node-theory, #panel #move-building, #panel #export, #panel .panel-note {display:none!important}
+#panel .primary[hidden]{display:none}
+#panel .primary:disabled{opacity:.45;cursor:not-allowed}
+
+/* The handle remains visible while the indicator content rests below the viewport. */
+#village-dashboard{position:fixed;bottom:0;z-index:12;padding:0;max-height:none;overflow:hidden;border-radius:16px 16px 0 0;transform:translateY(calc(100% - 44px));transition:transform .25s ease;box-shadow:0 -5px 25px #203a3020}
+#village-dashboard.is-open{transform:translateY(0)}
+#dashboard-toggle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:100%;height:44px;border:0;background:#f6f6ec;color:#315842;font:600 12px system-ui;cursor:ns-resize;touch-action:none;user-select:none}
+#dashboard-toggle:focus-visible{outline:2px solid #b58a4f;outline-offset:-3px}
+.drawer-grip{width:38px;height:4px;border-radius:4px;background:#9cafa0}
+#dashboard-content{padding:10px 12px 14px;max-height:55dvh;overflow-y:auto;overscroll-behavior:contain}
+body{--dashboard-space:44px}
+.view-tools{bottom:calc(var(--dashboard-space) + 52px)}
+.mini-map{bottom:calc(var(--dashboard-space) + 12px)}
+@media(max-width:1000px){body{--dashboard-space:44px}#village-dashboard{max-height:none}#dashboard-content{max-height:65dvh}}
+@media(max-width:750px){#ops,#panel{max-height:calc(100dvh - 260px)}.view-tools{bottom:calc(var(--dashboard-space) + 52px)}}
+@media(prefers-reduced-motion:reduce){#village-dashboard{transition:none}}
+
+#mission-backdrop,#missionStory,#missionStart{display:none}
+body.mission-intro #mission-backdrop{display:block;position:fixed;inset:0;z-index:29;background:#172f2873;backdrop-filter:blur(3px)}
+body.mission-intro #ops{position:fixed;z-index:30;top:50%;left:50%;bottom:auto;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 48px);padding:32px 36px;background:#faf6e9;border:1px solid #dfd5bd;border-top:5px solid #b98d4b;border-radius:15px;box-shadow:0 25px 90px #102c2755;font-size:15px}
+body.mission-intro #ops>small{font-size:11px;letter-spacing:2px}
+body.mission-intro #ops h2{font-size:27px;line-height:1.4;margin:14px 0 20px}
+body.mission-intro #missionStory{display:block;line-height:2;color:#43594b;margin-bottom:20px;white-space:pre-line}
+body.mission-intro #opsTask{padding:12px 15px;border-left:3px solid #b98d4b;background:#eee9db;line-height:1.8;font-size:13px}
+body.mission-intro #missionStart{display:block;width:100%;margin-top:24px;padding:12px;background:#315c42;color:#fff;border:0;font-size:16px}
+body.mission-intro #opsStats,body.mission-intro #opsGo,body.mission-intro #ops details{display:none}
+@media(max-width:600px){body.mission-intro #ops{padding:24px}body.mission-intro #ops h2{font-size:23px}}
+
+/* Shared information hierarchy for buildings and street facilities. */
+#panel #node-detail:not(.local-culture), #panel #node-detail[hidden]{display:none!important}
+#panel:not(.compact-tools) #node-detail.local-culture:not([hidden]) ~ #node-theory{display:block!important}
+
+.bottom .settings label:has(select){display:inline-flex;align-items:center;gap:6px;padding:3px 5px 3px 10px;border:1px solid #405c48;border-radius:9px;background:#fffdf4;color:#34513d;box-shadow:0 2px 6px #162c2733;font-size:12px;font-weight:600;cursor:pointer}
+.bottom .settings select{min-height:32px;max-width:150px;padding:4px 6px;background:#315640;color:white;color-scheme:dark;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+.bottom .settings label:focus-within{outline:3px solid #d5a24c;outline-offset:2px}
+@media(max-width:760px){.bottom .settings label:has(select){gap:4px;padding:2px 3px 2px 6px;font-size:11px}.bottom .settings select{max-width:115px;font-size:12px}}
+#panel #place-facts[hidden]{display:none}
+#panel #place-facts{gap:18px 10px;margin-top:14px;padding:18px 0;border-top:1px solid #dfe3d6}
+#panel #place-facts b{font-size:13px;line-height:1.5}
+#panel #object-policy{min-height:0;margin:10px 0;font-size:12px}
+
+#dashboard-score{border-bottom:1px solid #d5ddcf;margin-bottom:12px;padding-bottom:12px}
+.score-summary{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 0;color:#315b45}
+.score-summary strong{font-size:30px;font-variant-numeric:tabular-nums}.score-summary strong small{font-size:13px;font-weight:400}
+.score-summary>span:last-child{font-size:11px;color:#697968}
+.score-parts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.score-part{display:grid;grid-template-columns:1fr auto;gap:5px;padding:9px;background:#edf1e7;border-radius:6px;font-size:12px}
+.score-part meter{grid-column:1/-1;width:100%;height:8px}.score-part small{grid-column:1/-1;color:#647662}
+.score-rules{margin-top:8px;color:#65715e}.score-rules summary{cursor:pointer}.score-rules p{margin:3px 0;font-size:11px}
+#score-preview-dialog{max-height:85dvh;overflow:auto}#score-preview-dialog h2{margin-top:0}#score-preview-dialog .score-summary{background:#eaf0e4;padding:16px;border-radius:10px}
+.score-preview-actions{position:sticky;bottom:-34px;background:#fafaf2;display:flex;gap:12px;padding:14px 0;margin-top:10px}.score-preview-actions .primary{margin:0}
+@media(max-width:700px){.score-parts{grid-template-columns:repeat(2,minmax(0,1fr))}.score-summary strong{font-size:24px}}
+
+#shop-items .shop-indicators{margin:12px 0;padding:12px;background:#edf1e6;border:1px solid #dce4d4;border-radius:9px}
+#shop-items .shop-indicator-tags{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:5px;margin:0 0 10px}
+.shop-indicator-tags span{padding:4px 7px;background:#dbe8d6;color:#315b41;border-radius:5px;font-size:11px;font-weight:600}
+#shop-items .shop-indicators dl{margin:0 0 8px;font-size:11px}
+#shop-items .shop-indicators dl>div{display:flex;gap:8px;justify-content:space-between;margin:4px 0}
+.shop-indicators dt{color:#73816a;white-space:nowrap}.shop-indicators dd{margin:0;text-align:right;color:#36563f}
+#shop-items .shop-indicators p{min-height:0;margin:7px 0;font-size:11px;line-height:1.7}
+#shop-items .shop-indicators .shop-limit{color:#6c653d}
+#shop-items .shop-indicators .shop-cost-effect{border-top:1px solid #d5dfcd;padding-top:8px;color:#747867}
+
+.budget-strip .budget-score{border-left:1px solid #d2dacb;padding-left:14px;margin-left:6px}
+.budget-strip #current-total-score{color:#315c42;font-variant-numeric:tabular-nums}
+#panel #undo-plan{margin-top:14px;justify-content:center;background:#edf0e5;color:#49634e}
+#panel #undo-plan:disabled{opacity:.45;cursor:not-allowed}
+.dashboard-heading #plan-report{padding:4px 10px;font-size:11px}
+
+#ops #guideNext{display:block;width:100%;margin-top:8px;background:#edf0e4;color:#44624b;text-align:left}
+#ops #guideNext[hidden]{display:none}
+#ops #guideReplay{background:none;border:0;color:#7b836e;font-size:11px;padding:6px 0}
+#ops #opsNext{display:block;width:100%;padding:10px;margin-top:10px;font-weight:600}
+#ops #opsNext:disabled{opacity:.5;cursor:not-allowed}
+body.mission-intro #ops #guideNext,body.mission-intro #ops #guideReplay,body.mission-intro #ops #opsNext{display:none}
+#month-result-dialog{max-height:85dvh;overflow:auto}
+
+/* Reserve a separate column beside the location map for the walking pad. */
+@media (min-width:1001px){
+  body.lane .mini-map{left:24px;width:150px}
+  body.lane #walk-controls{left:190px;bottom:calc(var(--dashboard-space) + 12px)}
+  body.lane.observing #walk-controls{left:24px}
+}
+@media (max-width:1000px){
+  body.lane #walk-controls{left:10px;bottom:calc(var(--dashboard-space) + 12px)}
+  body.lane .view-tools{bottom:calc(var(--dashboard-space) + 116px)}
+}
+
+.settlement-rank{text-align:center;padding:25px 18px 18px;background:#edf1e5;border:1px solid #d7dec9;border-top:4px solid #b99556;border-radius:12px;color:#31513d}
+.settlement-rank>small{display:inline-block;padding:4px 12px;border-radius:20px;background:#e5d9b8;color:#795e29;font-size:12px;letter-spacing:2px}
+.settlement-rank h3{font:600 clamp(26px,5vw,36px)/1.4 SimSun,serif;margin:16px 0 8px}
+.rank-score{font-size:34px;font-weight:650;font-variant-numeric:tabular-nums}.rank-score span{font-size:13px;font-weight:400;color:#71806b}
+#month-result-body .rank-change{font-size:12px;margin:6px 0;color:#69785f}
+.settlement-rank blockquote{margin:18px 0 12px;font-family:serif;line-height:1.9;color:#59654a}
+#month-result-body .rank-best{font-size:12px;color:#857348;margin-bottom:0}
+.rank-next{margin:14px 0;padding:13px 16px;background:#f3efdf;border-radius:8px;color:#6b6146}
+.rank-next strong{font-size:13px}.rank-next p{font-size:12px;margin:6px 0 0}
+
+/* Share one layout so expanded task details cannot cover an observation. */
+.observation-panels { display: contents; }
+
+body.observing:not(.mission-intro) .observation-panels {
+  position: absolute;
+  z-index: 3;
+  top: 145px;
+  left: 18px;
+  bottom: 100px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+}
+
+body.observing:not(.mission-intro) .observation-panels > :is(#ops, #study-card) {
+  position: static;
+  box-sizing: border-box;
+  width: 265px;
+  max-height: 100%;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+@media (max-width: 980px) {
+  body.observing:not(.mission-intro) .observation-panels {
+    top: 145px;
+    bottom: 126px;
+    left: 8px;
+    width: min(265px, 52vw);
+    flex-direction: column;
+    overflow-y: auto;
+    pointer-events: auto;
+  }
+
+  body.observing:not(.mission-intro) .observation-panels > :is(#ops, #study-card) {
+    flex: none;
+    width: 100%;
+    max-height: none;
+  }
+
+  .observation-panels > #study-card { order: -1; }
+}
