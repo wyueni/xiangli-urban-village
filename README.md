@@ -4,7 +4,8 @@
 
 ## 快速体验
 
-- **在线试玩** [巷里网页版](https://wyueni.github.io/xiangli-urban-village/)，启用 GitHub Pages 后可直接在浏览器中打开。
+- **在线试玩** [巷里网页版](https://xiangli-village-play.tautguild1.chatgpt.site/)，使用部署所属账户登录后体验；[直接进入自由体验](https://xiangli-village-play.tautguild1.chatgpt.site/free-build.html)。
+- **GitHub Pages 备用入口** `https://wyueni.github.io/xiangli-urban-village/`。仓库已提供自动部署工作流，将 `dist/` 发布为站点根目录。该入口需 Pages 部署成功后才可用；私有仓库还需账户套餐支持私有仓库 Pages。在仓库 Settings → Pages 选择 GitHub Actions，或运行 Deploy game to GitHub Pages 工作流。不要将仓库源码页面当作游戏页面。
 - **离线试玩** 下载仓库 ZIP，解压后双击 `开始体验.html`，使用支持 WebGL 的浏览器。
 - **本地开发** 在仓库根目录运行 `node server.cjs`，再在本机浏览器打开 `http://127.0.0.1:4175/`。
 
